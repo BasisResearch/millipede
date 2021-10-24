@@ -5,6 +5,11 @@
 A library for bayesian variable selection
 
 
+## Contact information
+
+Martin Jankowiak: mjankowi@broadinstitute.org
+
+
 ## References
 
 Zanella, G. and Roberts, G., 2019. [Scalable importance tempering and Bayesian variable selection](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316). Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
