@@ -5,6 +5,20 @@
 A library for bayesian variable selection
 
 
+## Installation instructions
+
+Install directly from GitHub:
+
+```pip install git+https://github.com/broadinstitute/millipede.git```
+
+Install from source:
+```
+git clone git@github.com:broadinstitute/millipede.git
+cd millipede
+pip install .
+```
+
+
 ## Contact information
 
 Martin Jankowiak: mjankowi@broadinstitute.org
