@@ -1,7 +1,7 @@
 import numpy as np
+import pandas
 import pytest
 import torch
-import pandas
 from common import assert_close
 
 from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
@@ -39,8 +39,9 @@ def test_linear_correlated(prior, precompute_XX, N=256, P=16):
     XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
     columns = ['{}'.format(c) for c in range(P)] + ['response']
     dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
-    selector = NormalLikelihoodVariableSelector(dataframe, 'response',
-        tau=0.01, c=50.0, prior=prior, compute_betas=True, S=1.0, nu0=0.0, lambda0=0.0)
+    selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=50.0,
+                                                prior=prior, compute_betas=True,
+                                                S=1.0, nu0=0.0, lambda0=0.0)
 
     selector.run()
     assert_close(selector.pip[:2], np.array([0.5, 0.5]), atol=0.15)

@@ -1,6 +1,11 @@
-import torch
+import math
+import time
+
 import numpy as np
+import torch
+
 from millipede import NormalLikelihoodSampler
+
 from .util import namespace_to_numpy, stack_namespaces
 
 
@@ -29,8 +34,8 @@ class NormalLikelihoodVariableSelector(VariableSelector):
             X, Y = torch.from_numpy(X).double(), torch.from_numpy(Y).double()
 
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
-            precompute_XX=precompute_XX, prior=prior, tau=tau,
-            compute_betas=compute_betas, nu0=nu0, lambda0=lambda0)
+                                               precompute_XX=precompute_XX, prior=prior, tau=tau,
+                                               compute_betas=compute_betas, nu0=nu0, lambda0=lambda0)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100):
         if not isinstance(T, int) and T > 0:
@@ -39,10 +44,20 @@ class NormalLikelihoodVariableSelector(VariableSelector):
             raise ValueError("T_burnin must be a positive integer.")
 
         samples = []
+        ts = [time.time()]
+        digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, s) in enumerate(self.sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+            ts.append(time.time())
             if burned:
-                samples.append(namespace_to_numpy(s))
+                samples.append(namespace_to_numpy(sample))
+            if verbose and t % report_frequency == 0 or t == T + T_burnin - 1:
+                s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
+                s += "\tnumber of active features: {}".format(sample.gamma.sum().item())
+                if t >= report_frequency:
+                    dt = 1000.0 * (ts[-1] - ts[-1 - report_frequency]) / report_frequency
+                    s += "\taverage iteration time: {:.4f} ms".format(dt)
+                print(s)
 
         samples = stack_namespaces(samples)
         weights = samples.weight / samples.weight.sum()
