@@ -80,7 +80,9 @@ class NormalLikelihoodSampler(MCMCSampler):
         active = torch.nonzero(sample.gamma).squeeze(-1)
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
         num_active = active.size(-1)
-        assert num_active < self.P and num_active <= self.N
+        assert num_active < self.P, "The MCMC sampler has been driven into a regime where " +\
+            "all features have been selected. Are you sure you have chosen a reasonable prior? " +\
+            "Are you sure there is signal in your data?"
 
         X_k = self.X[:, inactive]
         Z_k = self.Z[inactive]

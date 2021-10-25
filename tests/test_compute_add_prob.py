@@ -10,7 +10,7 @@ from millipede import NormalLikelihoodSampler
 
 
 @pytest.mark.parametrize("precompute_XX", [False, True])
-def test_isotropic_compute_add_log_prob(precompute_XX, N=35, P=9, tau=0.47):
+def test_isotropic_compute_add_log_prob(precompute_XX, N=5, P=4, tau=0.47):
     X = torch.randn(N, P).double()
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
     sampler = NormalLikelihoodSampler(X, Y, S=1, c=0.0, tau=tau,
@@ -27,13 +27,13 @@ def test_isotropic_compute_add_log_prob(precompute_XX, N=35, P=9, tau=0.47):
         return compute_log_factor(ind1) - compute_log_factor(ind0) +\
             sampler.log_h_ratio + 0.5 * math.log(tau)
 
-    # TEST GAMMA = 0 0 0 0
+    # TEST GAMMA = 0 0 0
     sample = SimpleNamespace(gamma=zeros(P).bool(), add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
     log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
     for p in range(P):
         assert_close(compute_log_factor_ratio([p], []), log_odds[p], atol=1.0e-7)
 
-    # TEST GAMMA = 1 0 0 0
+    # TEST GAMMA = 1 0 0
     gamma = [1] + [0] * (P - 1)
     sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
                              add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
@@ -41,17 +41,25 @@ def test_isotropic_compute_add_log_prob(precompute_XX, N=35, P=9, tau=0.47):
     for p in range(1, P):
         assert_close(compute_log_factor_ratio([0, p], [0]), log_odds[p], atol=1.0e-7)
 
-    # TEST GAMMA = 1 1 0 0
+    # TEST GAMMA = 1 1 0
     gamma = [1, 1] + [0] * (P - 2)
     sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
                              add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
     log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
-    for p in range(2, 5):
+    for p in range(2, P):
         assert_close(compute_log_factor_ratio([0, 1, p], [0, 1]), log_odds[p], atol=1.0e-7)
+
+    # TEST GAMMA = 1 1 1
+    gamma = [1, 1, 1] + [0] * (P - 3)
+    sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
+                             add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
+    log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
+    for p in range(3, P):
+        assert_close(compute_log_factor_ratio([0, 1, 2, p], [0, 1, 2]), log_odds[p], atol=1.0e-7)
 
 
 @pytest.mark.parametrize("precompute_XX", [False, True])
-def test_gprior_compute_add_log_prob(precompute_XX, N=35, P=9):
+def test_gprior_compute_add_log_prob(precompute_XX, N=5, P=4):
     X = torch.randn(N, P).double()
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
     sampler = NormalLikelihoodSampler(X, Y, S=1, tau=0.0, c=0.73,
@@ -67,13 +75,13 @@ def test_gprior_compute_add_log_prob(precompute_XX, N=35, P=9):
     def compute_log_factor_ratio(ind1, ind0):
         return compute_log_factor(ind1) - compute_log_factor(ind0) + sampler.hc_prefactor
 
-    # TEST GAMMA = 0 0 0 0
+    # TEST GAMMA = 0 0 0
     sample = SimpleNamespace(gamma=zeros(P).bool(), add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
     log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
     for p in range(P):
         assert_close(compute_log_factor_ratio([p], []), log_odds[p], atol=1.0e-7)
 
-    # TEST GAMMA = 1 0 0 0
+    # TEST GAMMA = 1 0 0
     gamma = [1] + [0] * (P - 1)
     sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
                              add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
@@ -81,10 +89,18 @@ def test_gprior_compute_add_log_prob(precompute_XX, N=35, P=9):
     for p in range(1, P):
         assert_close(compute_log_factor_ratio([0, p], [0]), log_odds[p], atol=1.0e-7)
 
-    # TEST GAMMA = 1 1 0 0
+    # TEST GAMMA = 1 1 0
     gamma = [1, 1] + [0] * (P - 2)
     sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
                              add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
     log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
     for p in range(2, P):
         assert_close(compute_log_factor_ratio([0, 1, p], [0, 1]), log_odds[p], atol=1.0e-7)
+
+    # TEST GAMMA = 1 1 1
+    gamma = [1, 1, 1] + [0] * (P - 3)
+    sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
+                             add_prob=zeros(P), i_prob=zeros(P), idx=0, weight=0)
+    log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
+    for p in range(3, P):
+        assert_close(compute_log_factor_ratio([0, 1, 2, p], [0, 1, 2]), log_odds[p], atol=1.0e-7)
