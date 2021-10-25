@@ -10,14 +10,11 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("precompute_XX", [False, True])
 @pytest.mark.parametrize("prior", ["isotropic", "gprior"])
 def test_linear_correlated(prior, precompute_XX, N=256, P=16):
-    torch.set_default_tensor_type('torch.DoubleTensor')
+    X = torch.randn(N, P).double()
+    X[:, 1] = X[:, 0] + 0.001 * torch.randn(N).double()
+    Y = X[:, 0] + 0.05 * torch.randn(N).double()
 
     samples = []
-
-    X = torch.randn(N, P)
-    X[:, 1] = X[:, 0] + 0.001 * torch.randn(N)
-    Y = X[:, 0] + 0.05 * torch.randn(N)
-
     sampler = NormalLikelihoodSampler(X, Y, precompute_XX=precompute_XX, prior=prior,
                                       compute_betas=True, S=1.0, nu0=0.0, lambda0=0.0,
                                       tau=0.01, c=50.0)

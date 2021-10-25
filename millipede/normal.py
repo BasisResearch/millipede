@@ -19,27 +19,13 @@ class NormalLikelihoodSampler(MCMCSampler):
         assert prior in ['isotropic', 'gprior']
 
         self.prior = prior
-
         self.X = X
         self.Y = Y
         self.tau = tau if prior == 'isotropic' else 0.0
         self.c = c if prior == 'gprior' else 0.0
 
-        self.nu0 = nu0
-        self.lambda0 = lambda0
-        self.nulam0 = nu0 * lambda0
-
-        if precompute_XX:
-            self.XX = X.t() @ X
-            self.XX_diag = self.XX.diagonal()
-        else:
-            self.XX = None
-
-        self.YY = Y.pow(2.0).sum() + self.nulam0
-        self.Z = einsum("np,n->p", X, Y)
-
         self.N, self.P = X.shape
-        assert self.N == Y.size(-1)
+        assert (self.N,) == Y.shape
 
         if S >= self.P or S <= 0:
             raise ValueError("S must satisfy 0 < S < P")
@@ -49,11 +35,24 @@ class NormalLikelihoodSampler(MCMCSampler):
             raise ValueError("tau must satisfy tau > 0.0")
         if explore <= 0.0:
             raise ValueError("explore must satisfy explore > 0.0")
+        if nu0 < 0.0:
+            raise ValueError("nu0 must satisfy nu0 >= 0.0")
+        if lambda0 < 0.0:
+            raise ValueError("lambda0 must satisfy lambda0 >= 0.0")
+
+        self.YY = Y.pow(2.0).sum() + nu0 * lambda0
+        self.Z = einsum("np,n->p", X, Y)
+
+        if precompute_XX:
+            self.XX = X.t() @ X
+            self.XX_diag = self.XX.diagonal()
+        else:
+            self.XX = None
 
         self.h = S / self.P
         self.explore = explore / self.P
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
-        self.N_nu0 = self.N + self.nu0
+        self.N_nu0 = self.N + nu0
 
         self.compute_betas = compute_betas
         self.c_one_c = self.c / (1.0 + self.c)
