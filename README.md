@@ -5,6 +5,11 @@
 A library for bayesian variable selection
 
 
+## Requirements
+
+[PyTorch](https://pytorch.org/) and [pandas](https://pandas.pydata.org/).
+
+
 ## Installation instructions
 
 Install directly from GitHub:
