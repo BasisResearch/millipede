@@ -1,61 +1,17 @@
 import math
 import time
-from functools import cached_property
 
-import numpy as np
 import torch
 
 from millipede import NormalLikelihoodSampler
 
-from .util import namespace_to_numpy, stack_namespaces
-
-
-class SimpleSampleContainer(object):
-    def __init__(self):
-        self._raw_samples = []
-
-    def __call__(self, sample):
-        self._raw_samples.append(sample)
-
-    @cached_property
-    def samples(self):
-        samples = stack_namespaces(self._raw_samples)
-        del self._raw_samples
-        return samples
-
-    @cached_property
-    def weights(self):
-        weights = self.samples.weight
-        return weights / weights.sum()
-
-    @cached_property
-    def pip(self):
-        return np.dot(self.samples.add_prob.T, self.weights)
-
-
-class StreamingSampleContainer(object):
-    def __init__(self):
-        self._raw_pip = None
-        self._num_samples = 0.0
-        self._weights = []
-
-    def __call__(self, sample):
-        self._weights.append(sample.weight)
-        self._num_samples += 1.0
-        if self._raw_pip is None:
-            self._raw_pip = sample.add_prob * sample.weight
-        else:
-            self._raw_pip = (1.0 - 1.0 / self._num_samples) * self._raw_pip +\
-                (sample.add_prob * sample.weight) / self._num_samples
-
-    @cached_property
-    def pip(self):
-        return len(self._weights) * self._raw_pip / np.array(self._weights).sum()
+from .containers import SimpleSampleContainer, StreamingSampleContainer
+from .util import namespace_to_numpy
 
 
 class NormalLikelihoodVariableSelector(object):
     def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01, compute_betas=True,
+                 prior="isotropic", tau=0.01,
                  nu0=0.0, lambda0=0.0, precision="double"):
 
         if precision not in ['single', 'double']:
@@ -74,7 +30,7 @@ class NormalLikelihoodVariableSelector(object):
 
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior, tau=tau,
-                                               compute_betas=compute_betas, nu0=nu0, lambda0=lambda0)
+                                               compute_betas=True, nu0=nu0, lambda0=lambda0)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
         if not isinstance(T, int) and T > 0:
@@ -106,3 +62,5 @@ class NormalLikelihoodVariableSelector(object):
             self.samples = container.samples
 
         self.pip = container.pip
+        self.beta = container.beta
+        self.conditional_beta = container.conditional_beta
