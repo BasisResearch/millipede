@@ -60,57 +60,21 @@ def safe_cholesky(A, epsilon=1.0e-8):
     except RuntimeError as e:
         Aprime = A.clone()
         jitter_prev = 0.0
-        for i in range(3):
+        for i in range(5):
             jitter_new = epsilon * (10 ** i)
             Aprime.diagonal(dim1=-2, dim2=-1).add_(jitter_new - jitter_prev)
             jitter_prev = jitter_new
             try:
-                return torch.linalg.cholesky(Aprime, upper=False)
+                return torch.linalg.cholesky(Aprime)
             except RuntimeError:
                 continue
         raise e
-
-
-def check(t, s):
-    nan = torch.isnan(t).sum().item()
-    inf = torch.isinf(t).sum().item()
-    print("[{}]  nans: {}  infs: {}".format(s, nan, inf))
 
 
 def leave_one_out(x):
     N = x.size(-1)
     mask = ~torch.eye(N, N, device=x.device).bool()
     return x.expand(N, N)[mask].reshape(N, N - 1)
-
-
-def compute_submatrices(XX, X, Z):
-    N = XX.size(-1)
-    num_submatrices = 2**N - 1
-
-    s = torch.arange(num_submatrices)
-    n = torch.arange(N)
-
-    XX_sub = torch.zeros(XX.shape[:-2] + s.shape + XX.shape[-2:])
-    X_sub = torch.zeros(X.shape[:-2] + s.shape + X.shape[-2:])
-    Z_sub = torch.zeros(Z.shape[:-1] + s.shape + X.shape[-1:])
-
-    source_mask1 = ~((s.unsqueeze(-1) >> n) % 2).bool()
-    source_mask2 = source_mask1.unsqueeze(-1) & source_mask1.unsqueeze(-2)
-
-    destin_mask1 = n < source_mask1.sum(-1).unsqueeze(-1)
-    destin_mask2 = destin_mask1.unsqueeze(-1) & destin_mask1.unsqueeze(-2)
-
-    dXX = XX - torch.eye(N, dtype=XX.dtype, device=XX.device)
-    XX_sub[..., destin_mask2] = dXX.unsqueeze(-3).expand_as(XX_sub)[..., source_mask2]
-    XX_sub.reshape(XX_sub.shape[:-2] + (N * N,))[..., ::N + 1] += 1  # Add 1 to diagonal
-
-    X_sub[destin_mask1.unsqueeze(-2).expand_as(X_sub)] = X.expand_as(X_sub)[source_mask1.unsqueeze(-2).expand_as(X_sub)]
-    Z_sub[destin_mask1.expand_as(Z_sub)] = Z.expand_as(Z_sub)[source_mask1.expand_as(Z_sub)]
-
-    indices = -torch.ones(num_submatrices, N).long()
-    indices[destin_mask1] = torch.arange(N).expand(num_submatrices, N)[source_mask1]
-
-    return XX_sub, X_sub, Z_sub, indices
 
 
 def namespace_to_numpy(namespace, filter_sites=True, keep_sites=[]):

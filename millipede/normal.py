@@ -47,6 +47,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             raise ValueError("c must satisfy c > 0.0")
         if prior == 'isotropic' and self.tau <= 0.0:
             raise ValueError("tau must satisfy tau > 0.0")
+        if explore <= 0.0:
+            raise ValueError("explore must satisfy explore > 0.0")
 
         self.h = S / self.P
         self.explore = explore / self.P
