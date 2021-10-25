@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import torch
 from torch import einsum, matmul, sigmoid
 from torch import triangular_solve as trisolve
-from torch.distributions import Bernoulli, Categorical
+from torch.distributions import Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
@@ -13,10 +13,9 @@ from .util import leave_one_out, safe_cholesky
 
 class NormalLikelihoodSampler(MCMCSampler):
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
-                 algo="wtgs", prior="isotropic", tau=0.5, compute_betas=False,
+                 prior="isotropic", tau=0.01, compute_betas=False,
                  nu0=0.0, lambda0=0.0):
         super().__init__()
-        assert algo in ['wtgs', 'wgs', 'block']
         assert prior in ['isotropic', 'gprior']
 
         self.prior = prior
@@ -44,8 +43,11 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if S >= self.P or S <= 0:
             raise ValueError("S must satisfy 0 < S < P")
+        if prior == 'gprior' and self.c <= 0.0:
+            raise ValueError("c must satisfy c > 0.0")
+        if prior == 'isotropic' and self.tau <= 0.0:
+            raise ValueError("tau must satisfy tau > 0.0")
 
-        self.algo = algo
         self.h = S / self.P
         self.explore = explore / self.P
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
@@ -57,8 +59,14 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.hc_prefactor = self.log_h_ratio - self.log_one_c_sqrt
         self.epsilon = 1.0e-18
 
-        s = "Initialized {}-BasicSampler with {} prior and (N, P, S, c, tau) = ({}, {}, {:.1f}, {:.1f}, {:.3f})"
-        print(s.format(self.algo, self.prior, self.N, self.P, S, self.c, self.tau))
+        if self.prior == 'isotropic':
+            s = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)" +\
+                " = ({}, {}, {:.1f}, {:.3f})"
+            print(s.format(self.N, self.P, S, self.tau))
+        else:
+            s = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)" +\
+                " = ({}, {}, {:.1f}, {:.1f})"
+            print(s.format(self.N, self.P, S, self.c))
 
     def initialize_sample(self):
         if self.compute_betas:
@@ -108,15 +116,12 @@ class NormalLikelihoodSampler(MCMCSampler):
             XtZt_active = einsum("np,p->n", Xt_active, Zt_active)
 
             if self.XX is None:
-                normsq = norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
+                G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
             else:
                 normsq = trisolve(self.XX[active][:, inactive], L_active, upper=False)[0]
-                normsq = norm(normsq, dim=0).pow(2.0)
+                G_k_inv = XX_k + self.tau - norm(normsq, dim=0).pow(2.0)
 
-            G_k_inv = XX_k + self.tau - normsq
-            # G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
             W_k_sq = (einsum("np,n->p", X_k, XtZt_active) - Z_k).pow(2.0) / (G_k_inv + self.epsilon)
-
             Zt_active_sq = Zt_active.pow(2.0).sum()
 
             if self.prior == 'isotropic':
@@ -185,27 +190,15 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     def _compute_probs(self, sample):
         sample.add_prob = self._compute_add_prob(sample)
-
         gamma = sample.gamma.double()
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
-
-        if self.algo == 'wtgs':
-            sample.i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
-        elif self.algo == 'wgs':
-            sample.i_prob = sample.add_prob + self.explore
+        sample.i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
         return sample
 
     def gibbs_move(self, sample):
         self.t += 1
-
         sample.idx = Categorical(probs=sample.i_prob).sample()
-
-        if self.algo == 'wtgs':
-            sample.gamma[sample.idx] = ~sample.gamma[sample.idx]
-        elif self.algo == 'wgs':
-            sample.gamma[sample.idx] = Bernoulli(probs=sample.add_prob[sample.idx]).sample()
-
+        sample.gamma[sample.idx] = ~sample.gamma[sample.idx]
         sample = self._compute_probs(sample)
         sample.weight = sample.i_prob.mean().reciprocal()
-
         return sample

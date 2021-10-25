@@ -20,7 +20,7 @@ def test_linear_correlated(prior, precompute_XX, N=256, P=16):
 
     sampler = NormalLikelihoodSampler(X, Y, precompute_XX=precompute_XX, prior=prior,
                                       compute_betas=True, S=1.0, nu0=0.0, lambda0=0.0,
-                                      tau=0.01, c=50.0, algo='wtgs')
+                                      tau=0.01, c=50.0)
 
     for t, (burned, s) in enumerate(sampler.gibbs_chain(T=2000, T_burnin=200)):
         if burned:
