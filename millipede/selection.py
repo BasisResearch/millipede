@@ -11,6 +11,10 @@ from .util import namespace_to_numpy
 
 
 class NormalLikelihoodVariableSelector(object):
+    """
+    Bayesian variable selection for a linear model with a Normal likelihood.
+    The likelihood variance is controlled by a Inverse Gamma prior.
+    """
     def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01,
                  nu0=0.0, lambda0=0.0, precision="double", device="cpu"):

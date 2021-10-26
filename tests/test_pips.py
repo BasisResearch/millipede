@@ -30,7 +30,7 @@ def test_linear_correlated(prior, precompute_XX, N=128, P=16):
 
     pip = np.dot(samples.add_prob.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.15)
-    assert_close(pip[2:], np.zeros(P - 2), atol=0.05)
+    assert_close(pip[2:], np.zeros(P - 2), atol=0.10)
 
     beta = np.dot(np.transpose(samples.beta), weights)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)

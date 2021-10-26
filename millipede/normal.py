@@ -12,6 +12,13 @@ from .util import leave_one_out, safe_cholesky
 
 
 class NormalLikelihoodSampler(MCMCSampler):
+    """
+    MCMC sampler for Bayesian variable selection for a linear model with a Normal likelihood.
+    The likelihood variance is controlled by a Inverse Gamma prior.
+
+    Usage of this class is only recommended for advanced users. For most users it should
+    suffice to use `NormalLikelihoodVariableSelector`.
+    """
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01, compute_betas=False,
                  nu0=0.0, lambda0=0.0):
