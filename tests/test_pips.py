@@ -37,17 +37,17 @@ def test_linear_correlated(prior, precompute_XX, N=128, P=16):
     assert_close(beta[2:], np.zeros(P - 2), atol=0.02)
 
     XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
-    columns = ['{}'.format(c) for c in range(P)] + ['response']
+    columns = ['feat{}'.format(c) for c in range(P)] + ['response']
     dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
     selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=50.0,
                                                 prior=prior, S=1.0, nu0=0.0, lambda0=0.0)
 
     selector.run(T=2000, T_burnin=200, report_frequency=1100)
-    assert_close(selector.pip[:2], np.array([0.5, 0.5]), atol=0.15)
-    assert_close(selector.pip[2:], np.zeros(P - 2), atol=0.05)
+    assert_close(selector.pip.values[:2], np.array([0.5, 0.5]), atol=0.15)
+    assert_close(selector.pip.values[2:], np.zeros(P - 2), atol=0.05)
 
-    assert_close(selector.beta[:2], np.array([0.5, 0.5]), atol=0.15)
-    assert_close(selector.beta[2:], np.zeros(P - 2), atol=0.15)
+    assert_close(selector.beta.values[:2], np.array([0.5, 0.5]), atol=0.15)
+    assert_close(selector.beta.values[2:], np.zeros(P - 2), atol=0.15)
 
-    assert_close(selector.conditional_beta[:2], np.array([1.0, 1.0]), atol=0.25)
-    assert_close(selector.conditional_beta[2:], np.zeros(P - 2), atol=0.15)
+    assert_close(selector.conditional_beta.values[:2], np.array([1.0, 1.0]), atol=0.25)
+    assert_close(selector.conditional_beta.values[2:], np.zeros(P - 2), atol=0.15)

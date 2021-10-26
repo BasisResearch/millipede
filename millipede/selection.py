@@ -1,6 +1,7 @@
 import math
 import time
 
+import pandas as pd
 import torch
 
 from millipede import NormalLikelihoodSampler
@@ -19,14 +20,13 @@ class NormalLikelihoodVariableSelector(object):
         if response_column not in dataframe.columns:
             raise ValueError("response_column must be a valid column in the dataframe.")
 
-        self.index = dataframe.index.values
-        X = dataframe.drop(response_column, axis=1).values
-        Y = dataframe[response_column].values
+        X, Y = dataframe.drop(response_column, axis=1), dataframe[response_column]
+        self.X_columns = X.columns
 
         if precision == 'single':
-            X, Y = torch.from_numpy(X).float(), torch.from_numpy(Y).float()
+            X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
         elif precision == 'double':
-            X, Y = torch.from_numpy(X).double(), torch.from_numpy(Y).double()
+            X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
 
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior, tau=tau,
@@ -61,6 +61,7 @@ class NormalLikelihoodVariableSelector(object):
         if not streaming:
             self.samples = container.samples
 
-        self.pip = container.pip
-        self.beta = container.beta
-        self.conditional_beta = container.conditional_beta
+        self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
+        self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
+        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
+                                          name="Conditional Coefficient")
