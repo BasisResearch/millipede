@@ -13,10 +13,12 @@ from .util import namespace_to_numpy
 class NormalLikelihoodVariableSelector(object):
     def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01,
-                 nu0=0.0, lambda0=0.0, precision="double"):
+                 nu0=0.0, lambda0=0.0, precision="double", device="cpu"):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
+        if device not in ['cpu', 'gpu']:
+            raise ValueError("device must be one of `cpu` or `gpu`")
         if response_column not in dataframe.columns:
             raise ValueError("response_column must be a valid column in the dataframe.")
 
@@ -27,6 +29,11 @@ class NormalLikelihoodVariableSelector(object):
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
+
+        if device == 'cpu':
+            X, Y = X.cpu(), Y.cpu()
+        elif device == 'gpu':
+            X, Y = X.cuda(), Y.cuda()
 
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior, tau=tau,

@@ -27,6 +27,11 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.N, self.P = X.shape
         assert (self.N,) == Y.shape
 
+        assert X.dtype == Y.dtype
+        assert X.device == Y.device
+        self.device = X.device
+        self.dtype = X.dtype
+
         if S >= self.P or S <= 0:
             raise ValueError("S must satisfy 0 < S < P")
         if prior == 'gprior' and self.c <= 0.0:
@@ -70,17 +75,12 @@ class NormalLikelihoodSampler(MCMCSampler):
             print(s.format(self.N, self.P, S, self.c))
 
     def initialize_sample(self):
+        sample = SimpleNamespace(gamma=torch.zeros(self.P, device=self.device).bool(),
+                                 add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
+                                 i_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
+                                 idx=0, weight=0)
         if self.compute_betas:
-            sample = SimpleNamespace(gamma=torch.zeros(self.P).bool(),
-                                     add_prob=torch.zeros(self.P),
-                                     i_prob=torch.zeros(self.P),
-                                     beta=torch.zeros(self.P),
-                                     idx=0, weight=0)
-        else:
-            sample = SimpleNamespace(gamma=torch.zeros(self.P).bool(),
-                                     add_prob=torch.zeros(self.P),
-                                     i_prob=torch.zeros(self.P),
-                                     idx=0, weight=0)
+            sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
 
         sample = self._compute_probs(sample)
         return sample
