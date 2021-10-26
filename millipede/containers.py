@@ -45,14 +45,14 @@ class StreamingSampleContainer(object):
         self._weights.append(sample.weight)
         self._num_samples += 1.0
         if self._num_samples == 1.0:
-            self._raw_pip = sample.add_prob * sample.weight
-            self._raw_beta = sample.beta * sample.weight
-            self._raw_gamma = sample.gamma * sample.weight
+            self._pip = sample.add_prob * sample.weight
+            self._beta = sample.beta * sample.weight
+            self._gamma = sample.gamma * sample.weight
         else:
             factor = 1.0 - 1.0 / self._num_samples
-            self._raw_pip = factor * self._raw_pip + (sample.beta * sample.weight) / self._num_samples
-            self._raw_beta = factor * self._raw_beta + (sample.beta * sample.weight) / self._num_samples
-            self._raw_gamma = factor * self._raw_gamma + (sample.gamma * sample.weight) / self._num_samples
+            self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
+            self._beta = factor * self._beta + (sample.beta * sample.weight) / self._num_samples
+            self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples
 
     @cached_property
     def _normalizer(self):
@@ -60,12 +60,12 @@ class StreamingSampleContainer(object):
 
     @cached_property
     def pip(self):
-        return self._normalizer * self._raw_pip
+        return self._normalizer * self._pip
 
     @cached_property
     def beta(self):
-        return self._normalizer * self._raw_beta
+        return self._normalizer * self._beta
 
     @cached_property
     def conditional_beta(self):
-        return self._raw_beta / self._raw_gamma
+        return self._beta / self._gamma

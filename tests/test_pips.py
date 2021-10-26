@@ -44,7 +44,7 @@ def test_linear_correlated(prior, precompute_XX, N=128, P=16):
 
     selector.run(T=2000, T_burnin=200, report_frequency=1100)
     assert_close(selector.pip.values[:2], np.array([0.5, 0.5]), atol=0.15)
-    assert_close(selector.pip.values[2:], np.zeros(P - 2), atol=0.05)
+    assert_close(selector.pip.values[2:], np.zeros(P - 2), atol=0.1)
 
     assert_close(selector.beta.values[:2], np.array([0.5, 0.5]), atol=0.15)
     assert_close(selector.beta.values[2:], np.zeros(P - 2), atol=0.15)

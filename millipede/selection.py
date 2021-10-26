@@ -52,10 +52,10 @@ class NormalLikelihoodVariableSelector(object):
                 container(namespace_to_numpy(sample))
             if verbose and t % report_frequency == 0 or t == T + T_burnin - 1:
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
-                s += "\tnumber of active features: {}".format(sample.gamma.sum().item())
+                s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
                     dt = 1000.0 * (ts[-1] - ts[-1 - report_frequency]) / report_frequency
-                    s += "\taverage iteration time: {:.4f} ms".format(dt)
+                    s += "   mean iteration time: {:.2f} ms".format(dt)
                 print(s)
 
         if not streaming:
