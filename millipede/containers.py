@@ -6,6 +6,10 @@ from .util import stack_namespaces
 
 
 class SimpleSampleContainer(object):
+    """
+    Class used to store MCMC samples and compute summary statistics.
+    All samples are kept in memory.
+    """
     def __init__(self):
         self._samples = []
 
@@ -38,6 +42,10 @@ class SimpleSampleContainer(object):
 
 
 class StreamingSampleContainer(object):
+    """
+    Class used to process MCMC samples and compute summary statistics.
+    Instead of storing all MCMC samples in memory, summary statistics are computed online.
+    """
     def __init__(self):
         self._num_samples = 0.0
         self._weight_sum = 0.0
