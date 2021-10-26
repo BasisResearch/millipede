@@ -72,3 +72,4 @@ class NormalLikelihoodVariableSelector(object):
         self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
         self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
                                           name="Conditional Coefficient")
+        self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
