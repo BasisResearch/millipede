@@ -33,16 +33,17 @@ class SimpleSampleContainer(object):
 
     @cached_property
     def conditional_beta(self):
-        return self.beta / np.dot(self.samples.gamma.T, self.weights)
+        divisor = np.dot(self.samples.gamma.T, self.weights)
+        return np.true_divide(self.beta, divisor, where=divisor != 0, out=np.zeros(self.beta.shape))
 
 
 class StreamingSampleContainer(object):
     def __init__(self):
         self._num_samples = 0.0
-        self._weights = []
+        self._weight_sum = 0.0
 
     def __call__(self, sample):
-        self._weights.append(sample.weight)
+        self._weight_sum += sample.weight
         self._num_samples += 1.0
         if self._num_samples == 1.0:
             self._pip = sample.add_prob * sample.weight
@@ -56,7 +57,7 @@ class StreamingSampleContainer(object):
 
     @cached_property
     def _normalizer(self):
-        return len(self._weights) / np.array(self._weights).sum()
+        return self._num_samples / self._weight_sum
 
     @cached_property
     def pip(self):
@@ -68,4 +69,4 @@ class StreamingSampleContainer(object):
 
     @cached_property
     def conditional_beta(self):
-        return self._beta / self._gamma
+        return np.true_divide(self._beta, self._gamma, where=self._gamma != 0, out=np.zeros(self.beta.shape))
