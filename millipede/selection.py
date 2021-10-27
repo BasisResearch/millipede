@@ -17,7 +17,7 @@ class NormalLikelihoodVariableSelector(object):
     """
     def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01,
-                 nu0=0.0, lambda0=0.0, precision="double", device="cpu"):
+                 nu0=0.0, lambda0=0.0, precision="double", device="cpu", include_bias=True):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -27,7 +27,7 @@ class NormalLikelihoodVariableSelector(object):
             raise ValueError("response_column must be a valid column in the dataframe.")
 
         X, Y = dataframe.drop(response_column, axis=1), dataframe[response_column]
-        self.X_columns = X.columns
+        self.X_columns = X.columns.tolist()
 
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
@@ -39,9 +39,11 @@ class NormalLikelihoodVariableSelector(object):
         elif device == 'gpu':
             X, Y = X.cuda(), Y.cuda()
 
+        self.include_bias = include_bias
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior, tau=tau,
-                                               compute_betas=True, nu0=nu0, lambda0=lambda0)
+                                               compute_betas=True, nu0=nu0, lambda0=lambda0,
+                                               include_bias=include_bias)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
         if not isinstance(T, int) and T > 0:
@@ -73,7 +75,13 @@ class NormalLikelihoodVariableSelector(object):
             self.samples = container.samples
 
         self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
-        self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
-        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
-                                          name="Conditional Coefficient")
+        if self.include_bias:
+            self.beta = pd.Series(container.beta, index=self.X_columns + ["bias"], name="Coefficient")
+            self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ["bias"],
+                                              name="Conditional Coefficient")
+        else:
+            self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
+            self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
+                                              name="Conditional Coefficient")
+
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)

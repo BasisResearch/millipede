@@ -38,6 +38,8 @@ class SimpleSampleContainer(object):
     @cached_property
     def conditional_beta(self):
         divisor = np.dot(self.samples.gamma.T, self.weights)
+        if self.beta.shape != divisor.shape:
+            divisor = np.concatenate([divisor, [1.0]])
         return np.true_divide(self.beta, divisor, where=divisor != 0, out=np.zeros(self.beta.shape))
 
 
@@ -77,4 +79,5 @@ class StreamingSampleContainer(object):
 
     @cached_property
     def conditional_beta(self):
-        return np.true_divide(self._beta, self._gamma, where=self._gamma != 0, out=np.zeros(self.beta.shape))
+        gamma = np.concatenate([self._gamma, [1.0 / self._normalizer]]) if self._beta.shape != self._gamma.shape else self._gamma
+        return np.true_divide(self._beta, gamma, where=gamma != 0, out=np.zeros(self._beta.shape))
