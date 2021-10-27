@@ -99,7 +99,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
 
         if self.include_bias:
-            sample._activeb=torch.tensor([self.P], device=self.device, dtype=torch.int64)
+            sample._activeb = torch.tensor([self.P], device=self.device, dtype=torch.int64)
 
         sample = self._compute_probs(sample)
         return sample
@@ -168,7 +168,9 @@ class NormalLikelihoodSampler(MCMCSampler):
             active_loo = leave_one_out(active)  # I  I-1
 
             if self.include_bias:
-                active_loob = torch.cat([active_loo, (self.P * active_loo.new_ones(active_loo.size(0))).long().unsqueeze(-1)], dim=-1)
+                active_loob = torch.cat([active_loo,
+                                         (self.P * active_loo.new_ones(active_loo.size(0))).long().unsqueeze(-1)],
+                                        dim=-1)
             else:
                 active_loob = active_loo
 
@@ -229,7 +231,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
 
         sample._active = torch.nonzero(sample.gamma).squeeze(-1)
-        sample._activeb = torch.cat([sample._active, torch.tensor([self.P])]) if self.X[:, active] else sample._active
+        sample._activeb = torch.cat([sample._active, torch.tensor([self.P])]) if self.include_bias else sample._active
 
         sample = self._compute_probs(sample)
         sample.weight = sample._i_prob.mean().reciprocal()

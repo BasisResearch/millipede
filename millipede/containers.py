@@ -79,5 +79,6 @@ class StreamingSampleContainer(object):
 
     @cached_property
     def conditional_beta(self):
-        gamma = np.concatenate([self._gamma, [1.0 / self._normalizer]]) if self._beta.shape != self._gamma.shape else self._gamma
+        gamma = np.concatenate([self._gamma, [1.0 / self._normalizer]]) if self._beta.shape != self._gamma.shape \
+            else self._gamma
         return np.true_divide(self._beta, gamma, where=gamma != 0, out=np.zeros(self._beta.shape))

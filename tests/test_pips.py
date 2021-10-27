@@ -41,7 +41,7 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
 
     if include_bias:
-        assert_close(beta[-1].item(), bias, atol=0.05)
+        assert_close(beta[-1].item(), bias, atol=0.1)
     assert_close(beta[2:P], np.zeros(P - 2), atol=0.02)
 
     XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
@@ -60,11 +60,11 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
 
     assert_close(selector.beta.values[:2], np.array([0.5, 0.5]), atol=0.2)
     if include_bias:
-        assert_close(selector.beta.values[-1].item(), bias, atol=0.05)
+        assert_close(selector.beta.values[-1].item(), bias, atol=0.1)
     assert_close(selector.beta.values[2:P], np.zeros(P - 2), atol=0.05)
 
     assert_close(selector.conditional_beta.values[:2], np.array([1.0, 1.0]), atol=0.25)
     if include_bias:
-        assert_close(selector.conditional_beta.values[-1].item(), bias, atol=0.05)
+        assert_close(selector.conditional_beta.values[-1].item(), bias, atol=0.1)
         assert_close(selector.conditional_beta.values[-1].item(), selector.beta.values[-1].item(), atol=1.0e-6)
     assert_close(selector.conditional_beta.values[2:P], np.zeros(P - 2), atol=0.15)

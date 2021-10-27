@@ -73,7 +73,6 @@ def test_isotropic_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4, t
     check_gammas(sampler, include_bias, P, compute_log_factor_ratio)
 
 
-
 @pytest.mark.parametrize("precompute_XX", [False, True])
 @pytest.mark.parametrize("include_bias", [False, True])
 def test_gprior_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4):
