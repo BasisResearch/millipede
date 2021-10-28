@@ -39,10 +39,9 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.c = c if prior == 'gprior' else 0.0
 
         if include_bias:
-            self.Xb = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
+            self.X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
             self.Pb = self.P + 1
         else:
-            self.Xb = X
             self.Pb = self.P
 
         if S >= self.P or S <= 0:
@@ -59,10 +58,10 @@ class NormalLikelihoodSampler(MCMCSampler):
             raise ValueError("lambda0 must satisfy lambda0 >= 0.0")
 
         self.YY = Y.pow(2.0).sum() + nu0 * lambda0
-        self.Z = einsum("np,n->p", self.Xb, Y)
+        self.Z = einsum("np,n->p", self.X, Y)
 
         if precompute_XX:
-            self.XX = self.Xb.t() @ self.Xb
+            self.XX = self.X.t() @ self.X
             self.XX_diag = self.XX.diagonal()
         else:
             self.XX = None
@@ -122,7 +121,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             XX_k = self.XX_diag[inactive]
 
         if self.include_bias or num_active > 0:
-            X_activeb = self.Xb[:, activeb]
+            X_activeb = self.X[:, activeb]
             Z_active = self.Z[activeb]
             if self.XX is not None:
                 XX_active = self.XX[activeb][:, activeb]
@@ -174,7 +173,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             else:
                 active_loob = active_loo
 
-            X_active_loo = self.Xb[:, active_loob].permute(1, 2, 0)  # I I-1 N
+            X_active_loo = self.X[:, active_loob].permute(1, 2, 0)  # I I-1 N
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I-1 I-1
             if self.prior == 'isotropic':
                 XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
@@ -192,7 +191,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
         elif num_active == 0:
             Zt_active_loo_sq = 0.0
-            log_det_active = torch.tensor(0.0)
+            log_det_active = torch.tensor(0.0, device=self.device, dtype=self.dtype)
 
         if self.prior == 'gprior':
             log_S_ratio = -torch.log1p(-self.c_one_c * W_k_sq / (self.YY - self.c_one_c * Zt_active_sq))
@@ -231,7 +230,8 @@ class NormalLikelihoodSampler(MCMCSampler):
         sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
 
         sample._active = torch.nonzero(sample.gamma).squeeze(-1)
-        sample._activeb = torch.cat([sample._active, torch.tensor([self.P])]) if self.include_bias else sample._active
+        sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=self.device)]) \
+            if self.include_bias else sample._active
 
         sample = self._compute_probs(sample)
         sample.weight = sample._i_prob.mean().reciprocal()
