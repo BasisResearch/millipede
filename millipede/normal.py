@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import torch
 from torch import einsum, matmul, sigmoid
 from torch import triangular_solve as trisolve
-from torch.distributions import Categorical
+from torch.distributions import Bernoulli, Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
@@ -21,7 +21,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     """
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01, compute_betas=False,
-                 nu0=0.0, lambda0=0.0, include_bias=True):
+                 nu0=0.0, lambda0=0.0, include_bias=True, delta_mode=False):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
@@ -73,6 +73,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         self.compute_betas = compute_betas
         self.include_bias = include_bias
+        self.delta_bernoulli = Bernoulli(0.5) if delta_mode else None
 
         self.c_one_c = self.c / (1.0 + self.c)
         self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
@@ -221,7 +222,11 @@ class NormalLikelihoodSampler(MCMCSampler):
         sample.add_prob = self._compute_add_prob(sample)
         gamma = sample.gamma.type_as(sample.add_prob)
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
-        sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        if not self.delta_bernoulli:
+            sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        else:
+            delta = self.delta_bernoulli.sample().item()
+            sample._i_prob = (delta * sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
         return sample
 
     def gibbs_move(self, sample):

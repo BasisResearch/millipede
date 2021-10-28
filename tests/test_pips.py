@@ -47,8 +47,9 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
     XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
     columns = ['feat{}'.format(c) for c in range(P)] + ['response']
     dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
-    selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=50.0, include_bias=include_bias,
-                                                prior=prior, S=1.0, nu0=0.0, lambda0=0.0, precision='single')
+    selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=50.0,
+                                                include_bias=include_bias, prior=prior,
+                                                S=1.0, nu0=0.0, lambda0=0.0, precision='double')
 
     selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency)
 
@@ -66,5 +67,6 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
     assert_close(selector.conditional_beta.values[:2], np.array([1.0, 1.0]), atol=0.25)
     if include_bias:
         assert_close(selector.conditional_beta.values[-1].item(), bias, atol=0.1)
-        assert_close(selector.conditional_beta.values[-1].item(), selector.beta.values[-1].item(), atol=1.0e-6)
+        assert_close(selector.conditional_beta.values[-1].item(),
+                     selector.beta.values[-1].item(), atol=1.0e-6)
     assert_close(selector.conditional_beta.values[2:P], np.zeros(P - 2), atol=0.15)
