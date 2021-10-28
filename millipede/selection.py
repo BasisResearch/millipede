@@ -94,9 +94,16 @@ class NormalLikelihoodVariableSelector(object):
         quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
         q5, q10, q20, q50, q90, q95 = np.percentile(self.weights, quantiles).tolist()
         s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['WeightQuantiles'] = s.format(q5, q10, q20, q50, q90, q95)
+        self.stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
         s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['WeightMoments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
-                                               self.weights.min().item(), self.weights.max().item())
-        for k, v in self.stats.items():
-            print(k, v)
+        self.stats['Weight moments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
+                                                self.weights.min().item(), self.weights.max().item())
+        elapsed_time = time.time() - ts[0]
+        self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
+        self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
+        self.stats['Number of retained samples'] = T
+        self.stats['Number of burn-in samples'] = T_burnin
+
+        if verbose:
+            for k, v in self.stats.items():
+                print('{}: '.format(k), v)
