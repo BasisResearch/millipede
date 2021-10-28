@@ -51,10 +51,13 @@ class StreamingSampleContainer(object):
     def __init__(self):
         self._num_samples = 0.0
         self._weight_sum = 0.0
+        self._weights = []
 
     def __call__(self, sample):
         self._weight_sum += sample.weight
         self._num_samples += 1.0
+        self._weights.append(sample.weight)
+
         if self._num_samples == 1.0:
             self._pip = sample.add_prob * sample.weight
             self._beta = sample.beta * sample.weight

@@ -1,6 +1,7 @@
 import math
 import time
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -73,6 +74,9 @@ class NormalLikelihoodVariableSelector(object):
 
         if not streaming:
             self.samples = container.samples
+            self.weights = self.samples.weight
+        else:
+            self.weights = np.array(container._weights)
 
         self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
         if self.include_bias:
@@ -85,3 +89,14 @@ class NormalLikelihoodVariableSelector(object):
                                               name="Conditional Coefficient")
 
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
+
+        self.stats = {}
+        quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
+        q5, q10, q20, q50, q90, q95 = np.percentile(self.weights, quantiles).tolist()
+        s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+        self.stats['WeightQuantiles'] = s.format(q5, q10, q20, q50, q90, q95)
+        s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+        self.stats['WeightMoments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
+                                               self.weights.min().item(), self.weights.max().item())
+        for k, v in self.stats.items():
+            print(k, v)
