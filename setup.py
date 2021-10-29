@@ -28,7 +28,7 @@ setup(
     author="Martin Jankowiak",
     author_email="mjankowi@broadinstitute.org",
     install_requires=[
-        "torch>=1.7",
+        "torch>=1.9",
         "pandas",
     ],
     extras_require={
