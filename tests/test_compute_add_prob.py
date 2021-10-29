@@ -48,13 +48,13 @@ def check_gammas(sampler, include_bias, P, compute_log_factor_ratio):
 
 @pytest.mark.parametrize("precompute_XX", [False, True])
 @pytest.mark.parametrize("include_bias", [False, True])
-def test_isotropic_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4, tau=0.47):
+def test_isotropic_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4, tau=0.47, tau_bias=0.11):
     X = torch.randn(N, P).double()
     if include_bias:
         X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
 
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
-    sampler = NormalLikelihoodSampler(X, Y, S=1, c=0.0, tau=tau, include_bias=include_bias,
+    sampler = NormalLikelihoodSampler(X, Y, S=1, c=0.0, tau=tau, tau_bias=tau_bias, include_bias=include_bias,
                                       precompute_XX=precompute_XX, prior="isotropic")
     YY = sampler.YY
     Z = sampler.Z
@@ -62,7 +62,11 @@ def test_isotropic_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4, t
     def compute_log_factor(ind):
         if include_bias:
             ind = ind + [P]
-        F = torch.inverse(X[:, ind].t() @ X[:, ind] + tau * torch.eye(len(ind)))
+            precision = tau * torch.eye(len(ind))
+            precision[-1, -1] = tau_bias
+        else:
+            precision = tau * torch.eye(len(ind))
+        F = torch.inverse(X[:, ind].t() @ X[:, ind] + precision)
         ZFZ = (torch.mv(F, Z[ind]) * Z[ind]).sum(0)
         return -0.5 * N * (YY - ZFZ).log() + 0.5 * F.logdet()
 

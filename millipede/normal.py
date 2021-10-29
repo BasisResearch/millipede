@@ -20,7 +20,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     suffice to use `NormalLikelihoodVariableSelector`.
     """
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01, compute_betas=False,
+                 prior="isotropic", tau=0.01, tau_bias=1.0e-4, compute_betas=False,
                  nu0=0.0, lambda0=0.0, include_bias=True, delta_mode=False):
         assert prior in ['isotropic', 'gprior']
 
@@ -36,6 +36,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.X = X
         self.Y = Y
         self.tau = tau if prior == 'isotropic' else 0.0
+        self.tau_bias = tau_bias if prior == 'isotropic' and include_bias else 0.0
         self.c = c if prior == 'gprior' else 0.0
 
         if include_bias:
@@ -130,6 +131,8 @@ class NormalLikelihoodSampler(MCMCSampler):
                 XX_active = X_activeb.t() @ X_activeb
             if self.prior == 'isotropic':
                 XX_active.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+                if self.include_bias:
+                    XX_active[-1, -1].add_(self.tau_bias - self.tau)
 
             L_active = safe_cholesky(XX_active)
 
@@ -178,6 +181,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I-1 I-1
             if self.prior == 'isotropic':
                 XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+                if self.include_bias:
+                    XX_active_loo[-1, -1].add_(self.tau_bias - self.tau)
 
             Z_active_loo = self.Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)
