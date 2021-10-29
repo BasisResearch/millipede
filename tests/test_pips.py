@@ -13,6 +13,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("include_bias", [True, False])
 def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias=2.34,
                            T=3000, T_burnin=200, report_frequency=1600):
+    torch.manual_seed(1)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.001 * torch.randn(N, 2).double()
@@ -24,7 +25,8 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
     samples = []
     sampler = NormalLikelihoodSampler(X, Y, precompute_XX=precompute_XX, prior=prior,
                                       compute_betas=True, S=1.0, nu0=0.0, lambda0=0.0,
-                                      tau=0.01, c=50.0, include_bias=include_bias)
+                                      tau=0.01, c=50.0, include_bias=include_bias,
+                                      tau_bias=1.0e-6)
 
     for t, (burned, s) in enumerate(sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
         if burned:
@@ -34,7 +36,7 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
     weights = samples.weight / samples.weight.sum()
 
     pip = np.dot(samples.add_prob.T, weights)
-    assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.15)
+    assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
     beta = np.dot(np.transpose(samples.beta), weights)
@@ -56,7 +58,7 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
     assert_close(selector.pip.values, pip, atol=0.15)
     assert_close(selector.beta.values, beta, atol=0.15)
 
-    assert_close(selector.pip.values[:2], np.array([0.5, 0.5]), atol=0.15)
+    assert_close(selector.pip.values[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(selector.pip.values[2:], np.zeros(P - 2), atol=0.1)
 
     assert_close(selector.beta.values[:2], np.array([0.5, 0.5]), atol=0.2)
