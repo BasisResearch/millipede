@@ -216,14 +216,29 @@ class NormalLikelihoodSampler(MCMCSampler):
             return log_odds
 
         add_prob = sigmoid(log_odds)
-        return add_prob
+        return add_prob, log_odds
 
     def _compute_probs(self, sample):
-        sample.add_prob = self._compute_add_prob(sample)
+        sample.add_prob, log_odds = self._compute_add_prob(sample)
         gamma = sample.gamma.type_as(sample.add_prob)
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
         if not self.delta_bernoulli:
-            sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+            log_odds_cutoff = -5 #og_odds.sort()[0][-250]
+            #idx = float(self.P) - log_odds.sort()[1].double()
+            big = (log_odds >= log_odds_cutoff).double()
+            add_prob = big * sample.add_prob + self.explore
+            #add_prob = (sample.add_prob + self.explore) / idx.sqrt()
+            sample._i_prob = add_prob / (prob_gamma_i + self.epsilon)
+            #sample._i_prob = (add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+            #sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+            gamma16 = int(gamma[:16].sum().item())
+            add_prob_16 = add_prob[:16].sum().item()
+            add_prob_sp = add_prob[16:].sum().item()
+            if self.t % 10 == 0:
+                print("_i_prob:  {:.1e} {:.1e} {:.1e}  gamma16: {}  weight: {:.1e}  addprob: {:.1e} {:.1e}".format(sample._i_prob.min().item(),
+                      sample._i_prob.mean().item(),
+                      sample._i_prob.mean().item(), gamma16, sample._i_prob.mean().reciprocal().item(),
+                      add_prob_16, add_prob_sp))
         else:
             delta = self.delta_bernoulli.sample().item()
             sample._i_prob = (delta * sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
