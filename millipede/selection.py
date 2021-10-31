@@ -17,9 +17,9 @@ class NormalLikelihoodVariableSelector(object):
     The likelihood variance is controlled by a Inverse Gamma prior.
     """
     def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01,
+                 prior="isotropic", tau=0.01, tau_bias=1.0e-4,
                  nu0=0.0, lambda0=0.0, precision="double", device="cpu",
-                 include_bias=True, delta_mode=False):
+                 include_bias=True):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -43,9 +43,9 @@ class NormalLikelihoodVariableSelector(object):
 
         self.include_bias = include_bias
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
-                                               precompute_XX=precompute_XX, prior=prior, tau=tau,
+                                               precompute_XX=precompute_XX, prior=prior, tau=tau, tau_bias=tau_bias,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
-                                               include_bias=include_bias, delta_mode=delta_mode)
+                                               include_bias=include_bias)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
         if not isinstance(T, int) and T > 0:

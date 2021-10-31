@@ -23,25 +23,25 @@ def get_sample(gamma, include_bias):
 def check_gammas(sampler, include_bias, P, compute_log_factor_ratio):
     # TEST GAMMA = 0 0 0
     sample = get_sample([0] * P, include_bias)
-    log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
+    log_odds = sampler._compute_add_prob(sample)
     for p in range(P):
         assert_close(compute_log_factor_ratio([p], []), log_odds[p], atol=1.0e-7)
 
     # TEST GAMMA = 1 0 0
     sample = get_sample([1] + [0] * (P - 1), include_bias)
-    log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
+    log_odds = sampler._compute_add_prob(sample)
     for p in range(1, P):
         assert_close(compute_log_factor_ratio([0, p], [0]), log_odds[p], atol=1.0e-7)
 
     # TEST GAMMA = 1 1 0
     sample = get_sample([1, 1] + [0] * (P - 2), include_bias)
-    log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
+    log_odds = sampler._compute_add_prob(sample)
     for p in range(2, P):
         assert_close(compute_log_factor_ratio([0, 1, p], [0, 1]), log_odds[p], atol=1.0e-7)
 
     # TEST GAMMA = 1 1 1
     sample = get_sample([1, 1, 1] + [0] * (P - 3), include_bias)
-    log_odds = sampler._compute_add_prob(sample, return_log_odds=True)
+    log_odds = sampler._compute_add_prob(sample)
     for p in range(3, P):
         assert_close(compute_log_factor_ratio([0, 1, 2, p], [0, 1, 2]), log_odds[p], atol=1.0e-7)
 

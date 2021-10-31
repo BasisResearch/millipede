@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import torch
 from torch import einsum, matmul, sigmoid
 from torch import triangular_solve as trisolve
-from torch.distributions import Bernoulli, Categorical
+from torch.distributions import Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
@@ -21,7 +21,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     """
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01, tau_bias=1.0e-4, compute_betas=False,
-                 nu0=0.0, lambda0=0.0, include_bias=True, delta_mode=False):
+                 nu0=0.0, lambda0=0.0, include_bias=True):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
@@ -74,7 +74,6 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         self.compute_betas = compute_betas
         self.include_bias = include_bias
-        self.delta_bernoulli = Bernoulli(0.5) if delta_mode else None
 
         self.c_one_c = self.c / (1.0 + self.c)
         self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
@@ -217,36 +216,13 @@ class NormalLikelihoodSampler(MCMCSampler):
         log_odds[inactive] = log_odds_inactive
         log_odds[active] = log_odds_active
 
-        if return_log_odds:
-            return log_odds
-
-        add_prob = sigmoid(log_odds)
-        return add_prob, log_odds
+        return log_odds
 
     def _compute_probs(self, sample):
-        sample.add_prob, log_odds = self._compute_add_prob(sample)
+        sample.add_prob = sigmoid(self._compute_add_prob(sample))
         gamma = sample.gamma.type_as(sample.add_prob)
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
-        if not self.delta_bernoulli:
-            log_odds_cutoff = -5 #og_odds.sort()[0][-250]
-            #idx = float(self.P) - log_odds.sort()[1].double()
-            big = (log_odds >= log_odds_cutoff).double()
-            add_prob = big * sample.add_prob + self.explore
-            #add_prob = (sample.add_prob + self.explore) / idx.sqrt()
-            sample._i_prob = add_prob / (prob_gamma_i + self.epsilon)
-            #sample._i_prob = (add_prob + self.explore) / (prob_gamma_i + self.epsilon)
-            #sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
-            gamma16 = int(gamma[:16].sum().item())
-            add_prob_16 = add_prob[:16].sum().item()
-            add_prob_sp = add_prob[16:].sum().item()
-            if self.t % 10 == 0:
-                print("_i_prob:  {:.1e} {:.1e} {:.1e}  gamma16: {}  weight: {:.1e}  addprob: {:.1e} {:.1e}".format(sample._i_prob.min().item(),
-                      sample._i_prob.mean().item(),
-                      sample._i_prob.mean().item(), gamma16, sample._i_prob.mean().reciprocal().item(),
-                      add_prob_16, add_prob_sp))
-        else:
-            delta = self.delta_bernoulli.sample().item()
-            sample._i_prob = (delta * sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
         return sample
 
     def gibbs_move(self, sample):
