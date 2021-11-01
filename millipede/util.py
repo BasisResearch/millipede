@@ -17,43 +17,6 @@ class Timer(object):
         print("[{}]  {:.5f}".format(self.name, self.start.elapsed_time(self.end)))
 
 
-def divide_int(x, divisor):
-    remainder = x % divisor
-    ints = [x // divisor + int(n < remainder) for n in range(divisor)]
-    assert sum(ints) == x
-    return ints
-
-
-def subdivide_data(X, Y, T, max_count=100):
-    N = X.size(0)
-    assert Y.shape == T.shape == (N,)
-
-    def get_rows(Xn, Yn, Tn):
-        if Tn <= max_count:
-            return [Xn], [Yn], [Tn]
-        else:
-            num_rows = Tn // max_count + int(Tn % max_count > 0)
-            Ts = divide_int(Tn, num_rows)
-            Ys = divide_int(Yn, num_rows)
-            return [Xn] * num_rows, Ys, Ts
-
-    X_new, Y_new, T_new = [], [], []
-    for n in range(N):
-        X_rows, Y_rows, T_rows = get_rows(X[n], Y[n], T[n])
-        X_new.extend(X_rows)
-        Y_new.extend(Y_rows)
-        T_new.extend(T_rows)
-
-    X_new = torch.stack(X_new)
-    Y_new = torch.stack(Y_new)
-    T_new = torch.stack(T_new)
-
-    assert T_new.sum() == T.sum()
-    assert Y_new.sum() == Y.sum()
-
-    return X_new, Y_new, T_new
-
-
 def safe_cholesky(A, epsilon=1.0e-8):
     try:
         return torch.linalg.cholesky(A)
