@@ -16,7 +16,7 @@ from .util import leave_one_out, safe_cholesky
 
 
 class CountLikelihoodSampler(MCMCSampler):
-    def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01,
+    def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01, tau_bias=1.0e-4,
                  log_nu_rw_scale=0.03, omega_mh=True, psi0=None, init_nu=5.0, xi_target=0.25):
         super().__init__()
         if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):

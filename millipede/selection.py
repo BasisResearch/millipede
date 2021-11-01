@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from millipede import NormalLikelihoodSampler
+from millipede import NormalLikelihoodSampler, CountLikelihoodSampler
 
 from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
@@ -43,7 +43,8 @@ class NormalLikelihoodVariableSelector(object):
 
         self.include_bias = include_bias
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
-                                               precompute_XX=precompute_XX, prior=prior, tau=tau, tau_bias=tau_bias,
+                                               precompute_XX=precompute_XX, prior=prior,
+                                               tau=tau, tau_bias=tau_bias,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_bias=include_bias)
 
@@ -88,6 +89,106 @@ class NormalLikelihoodVariableSelector(object):
             self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
             self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
                                               name="Conditional Coefficient")
+
+        self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
+
+        self.stats = {}
+        quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
+        q5, q10, q20, q50, q90, q95 = np.percentile(self.weights, quantiles).tolist()
+        s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+        self.stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
+        s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+        self.stats['Weight moments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
+                                                self.weights.min().item(), self.weights.max().item())
+        elapsed_time = time.time() - ts[0]
+        self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
+        self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
+        self.stats['Number of retained samples'] = T
+        self.stats['Number of burn-in samples'] = T_burnin
+
+        if verbose:
+            for k, v in self.stats.items():
+                print('{}: '.format(k), v)
+
+
+class BinomialLikelihoodVariableSelector(object):
+    """
+    Bayesian variable selection for a generalized linear model with a Binomial likelihood.
+    """
+    def __init__(self, dataframe, response_column, total_count_column,
+                 S=5, explore=5, tau=0.01, tau_bias=1.0e-4,
+                 precision="double", device="cpu", log_nu_rw_scale=0.03,
+                 omega_mh=True, xi_target=0.25):
+
+        if precision not in ['single', 'double']:
+            raise ValueError("precision must be one of `single` or `double`")
+        if device not in ['cpu', 'gpu']:
+            raise ValueError("device must be one of `cpu` or `gpu`")
+        if response_column not in dataframe.columns:
+            raise ValueError("response_column must be a valid column in the dataframe.")
+        if total_count_column not in dataframe.columns:
+            raise ValueError("total_count_column must be a valid column in the dataframe.")
+
+        X = dataframe.drop([response_column, total_count_column], axis=1)
+        Y = dataframe[response_column]
+        TC = dataframe[total_count_column]
+        self.X_columns = X.columns.tolist()
+
+        if precision == 'single':
+            X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
+            TC = torch.from_numpy(TC.values).float()
+        elif precision == 'double':
+            X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
+            TC = torch.from_numpy(TC.values).double()
+
+        if device == 'cpu':
+            X, Y, TC = X.cpu(), Y.cpu(), TC.cpu()
+        elif device == 'gpu':
+            X, Y, TC = X.cuda(), Y.cuda(), TC.cuda()
+
+        print("X, Y, TC",X.shape, Y.shape, TC.shape)
+
+        self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, explore=explore,
+                                              tau=tau, tau_bias=tau_bias,
+                                              log_nu_rw_scale=log_nu_rw_scale,
+                                              omega_mh=omega_mh, xi_target=xi_target)
+
+    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
+        if not isinstance(T, int) and T > 0:
+            raise ValueError("T must be a positive integer.")
+        if not isinstance(T_burnin, int) and T_burnin > 0:
+            raise ValueError("T_burnin must be a positive integer.")
+
+        if streaming:
+            container = StreamingSampleContainer()
+        else:
+            container = SimpleSampleContainer()
+
+        ts = [time.time()]
+        digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
+
+        for t, (burned, sample) in enumerate(self.sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+            ts.append(time.time())
+            if burned:
+                container(namespace_to_numpy(sample))
+            if verbose and t % report_frequency == 0 or t == T + T_burnin - 1:
+                s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
+                s += "\t# of active features: {}".format(sample.gamma.sum().item())
+                if t >= report_frequency:
+                    dt = 1000.0 * (ts[-1] - ts[-1 - report_frequency]) / report_frequency
+                    s += "   mean iteration time: {:.2f} ms".format(dt)
+                print(s)
+
+        if not streaming:
+            self.samples = container.samples
+            self.weights = self.samples.weight
+        else:
+            self.weights = np.array(container._weights)
+
+        self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
+        self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
+        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
+                                          name="Conditional Coefficient")
 
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
 
