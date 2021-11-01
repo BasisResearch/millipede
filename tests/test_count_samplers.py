@@ -8,7 +8,8 @@ from millipede import CountLikelihoodSampler, BinomialLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-def test_binomial(N=128, P=16, T=1000, T_burnin=500):
+def test_binomial(N=120, P=15, T=10, T_burnin=5):
+    torch.manual_seed(0)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.001 * torch.randn(N, 2).double()
@@ -30,15 +31,23 @@ def test_binomial(N=128, P=16, T=1000, T_burnin=500):
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
+
+def test_binomial_selector(N=120, P=15, T=10, T_burnin=5):
+    torch.manual_seed(0)
+    X = torch.randn(N, P).double()
+    Z = torch.randn(N).double()
+    X[:, 0:2] = Z.unsqueeze(-1) + 0.001 * torch.randn(N, 2).double()
+    Y = (Z + 0.05 * torch.randn(N)) > 0.0
+    Y = Y.double()
+    TC = torch.ones(N).double()
+
     XYTC = torch.cat([X, Y.unsqueeze(-1), TC.unsqueeze(-1)], axis=-1)
     columns = ['feat{}'.format(c) for c in range(P)] + ['response', 'total_count']
     dataframe = pandas.DataFrame(XYTC.data.numpy(), columns=columns)
 
     selector = BinomialLikelihoodVariableSelector(dataframe, 'response', 'total_count',
                                                   S=1.0, tau=0.01, precision='double', device='cpu')
-    print("going to do run")
     selector.run(T=T, T_burnin=T_burnin, report_frequency=5)
-    print("selector.summary\n", selector.summary)
 
     assert_close(selector.pip.values, pip, atol=0.2)
 
