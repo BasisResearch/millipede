@@ -19,7 +19,11 @@ class CountLikelihoodSampler(MCMCSampler):
     def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01,
                  log_nu_rw_scale=0.03, omega_mh=True, psi0=None):
         super().__init__()
-        assert (TC is None and psi0 is not None) or (TC is not None and psi0 is None)
+        if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):
+            raise ValueError('CountLikelihoodSampler supports two modes of operation. ' +
+                             'In order to specify a binomial likelihood the user must provide TC but ~not~ ' +
+                             'provide psi0. For a negative binomial likelihood the user must provide psi0 ' +
+                             'but ~not~ provide TC.')
 
         self.dtype = X.dtype
         self.device = X.device
@@ -28,23 +32,33 @@ class CountLikelihoodSampler(MCMCSampler):
         self.Y = Y
         self.Y64 = self.Y.type_as(X)
         self.tau = tau
+        self.N, self.P = X.shape
 
         self.negbin = psi0 is not None
         if self.negbin:
-            assert psi0.shape == Y.shape or psi0.shape == ()
+            psi0 = X.new_tensor(psi0) if isinstance(psi0, float) else psi0
+            if not (psi0.shape == Y.shape or psi0.shape == ()):
+                raise ValueError("psi0 should either be a scalar or a one-dimensional array with " +
+                                 "the same number of elements as Y.")
             self.psi0 = psi0
             self.log_nu_rw_scale = log_nu_rw_scale
         else:
-            assert Y.shape == TC.shape
+            if not Y.shape == TC.shape or Y.ndim != 1:
+                raise ValueError("Y and TC should both be one-dimensional arrays.")
             self.TC = TC
             self.TC_np = TC.data.cpu().numpy()
             self.TC64 = self.TC.type_as(X)
 
-        self.N, self.P = X.shape
-        assert self.N == Y.size(-1)
-
+        if self.N != Y.size(-1):
+            raise ValueError("X and Y should be of shape (N, P) and (N,), respectively.")
         if S >= self.P or S <= 0:
             raise ValueError("S must satisfy 0 < S < P")
+        if tau <= 0.0:
+            raise ValueError("tau must be positive.")
+        if explore < 0.0:
+            raise ValueError("tau must be non-negative.")
+        if log_nu_rw_scale < 0.0 and self.negbin:
+            raise ValueError("log_nu_rw_scale must be non-negative.")
 
         self.h = S / self.P
         self.explore = explore / self.P

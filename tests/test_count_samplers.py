@@ -32,14 +32,13 @@ def test_binomial(N=128, P=16, T=1000, T_burnin=500):
 
 
 def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
-    #torch.set_default_dtype(torch.double)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.001 * torch.randn(N, 2).double()
     Y = torch.distributions.Poisson(Z.exp() + 0.1 * torch.rand(N)).sample()
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, psi0=torch.tensor(0.0), TC=None, S=1.0, tau=0.01)
+    sampler = CountLikelihoodSampler(X, Y, psi0=0.0, TC=None, S=1.0, tau=0.01)
 
     for t, (burned, s) in enumerate(sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
         if burned:
@@ -49,7 +48,7 @@ def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
     weights = samples.weight / samples.weight.sum()
 
     nu = np.exp(np.dot(samples.log_nu, weights))
-    assert nu > 4.0 and nu < 10.0
+    assert nu > 2.0 and nu < 10.0
 
     pip = np.dot(samples.add_prob.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.1)
