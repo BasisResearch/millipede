@@ -1,29 +1,25 @@
-from types import SimpleNamespace
 import math
-import time
+from types import SimpleNamespace
 
 import numpy as np
-
 import torch
-from torch import dot
+from polyagamma import random_polyagamma
+from torch import cholesky_solve as chosolve
+from torch import dot, einsum, matmul, sigmoid
+from torch import triangular_solve as trisolve
 from torch.distributions import Categorical, Uniform
 from torch.linalg import norm
 from torch.nn.functional import softplus
-from torch import matmul, einsum, sigmoid
-from torch import triangular_solve as trisolve
-from torch import cholesky_solve as chosolve
 
-from polyagamma import random_polyagamma
-
-from .util import namespace_to_numpy, stack_namespaces, leave_one_out, safe_cholesky
 from .sampler import MCMCSampler
+from .util import leave_one_out, safe_cholesky
 
 
 class CountLikelihoodSampler(MCMCSampler):
-    def __init__(self, X, Y, T=None, S=5, explore=5.0, tau=0.01,
+    def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01,
                  log_nu_rw_scale=0.03, omega_mh=True, psi0=None):
         super().__init__()
-        assert (T is None and psi0 is not None) or (T is not None and psi0 is None)
+        assert (TC is None and psi0 is not None) or (TC is not None and psi0 is None)
 
         self.Xb = torch.cat([X, torch.ones(X.size(0), 1)], dim=-1)
         self.Y = Y
@@ -36,10 +32,10 @@ class CountLikelihoodSampler(MCMCSampler):
             self.psi0 = psi0
             self.log_nu_rw_scale = log_nu_rw_scale
         else:
-            assert Y.shape == T.shape
-            self.T = T
-            self.T_np = T.data.cpu().numpy()
-            self.T64 = self.T.type_as(X)
+            assert Y.shape == TC.shape
+            self.TC = TC
+            self.TC_np = TC.data.cpu().numpy()
+            self.TC64 = self.TC.type_as(X)
 
         self.N, self.P = X.shape
         assert self.N == Y.size(-1)
@@ -73,14 +69,14 @@ class CountLikelihoodSampler(MCMCSampler):
 
         if not self.negbin:
             log_nu = None
-            _omega = torch.from_numpy(random_polyagamma(self.T_np, random_state=self.rng)).type_as(self.Xb)
+            _omega = torch.from_numpy(random_polyagamma(self.TC_np, random_state=self.rng)).type_as(self.Xb)
         else:
             log_nu = torch.tensor(math.log(3.0))
             _omega = torch.from_numpy(random_polyagamma(self.Y.data.cpu().numpy() + log_nu.exp().item(),
                                                         random_state=self.rng)).type_as(self.Xb)
 
         _psi0 = self.psi0 - log_nu if self.negbin else 0.0
-        _kappa = 0.5 * (self.Y - log_nu.exp()) if self.negbin else self.Y - 0.5 * self.T
+        _kappa = 0.5 * (self.Y - log_nu.exp()) if self.negbin else self.Y - 0.5 * self.TC
         _kappa_omega = _kappa - _omega * _psi0
         _Z = einsum("np,n->p", self.Xb, _kappa_omega)
 
@@ -174,8 +170,6 @@ class CountLikelihoodSampler(MCMCSampler):
 
         if self.t <= self.T_burnin:
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
-            if self.t == self.T_burnin:
-                print("[step {}]    Final adapted xi: {:.3f}".format(self.t, self.xi.item()))
 
         sample._i_prob = torch.cat([self.xi, i_prob])
 
@@ -218,9 +212,7 @@ class CountLikelihoodSampler(MCMCSampler):
         return sample
 
     def sample_omega_binomial(self, sample):
-        t0 = time.time()
-
-        omega_prop = random_polyagamma(self.T_np, sample._psi.data.cpu().numpy(), random_state=self.rng)
+        omega_prop = random_polyagamma(self.TC_np, sample._psi.data.cpu().numpy(), random_state=self.rng)
         omega_prop = torch.from_numpy(omega_prop).type_as(self.Xb)
 
         activeb = sample._activeb
@@ -251,7 +243,7 @@ class CountLikelihoodSampler(MCMCSampler):
             accept1 = log_target_prop - log_target_curr
             accept2 = dot(sample._kappa - self.Y64, delta_psi)
             accept3 = 0.5 * (dot(omega_prop, sample._psi.pow(2.0)) - dot(sample._omega, psi_prop.pow(2.0)))
-            accept4 = dot(self.T64, softplus(psi_prop) - softplus(sample._psi))
+            accept4 = dot(self.TC64, softplus(psi_prop) - softplus(sample._psi))
             accept = min(1.0, (accept1 + accept2 + accept3 + accept4).exp().item())
 
             if self.t >= self.T_burnin:
@@ -278,8 +270,6 @@ class CountLikelihoodSampler(MCMCSampler):
         return sample
 
     def sample_omega_nb(self, sample):
-        t0 = time.time()
-
         activeb = sample._activeb
         Xb_active = self.Xb[:, activeb]
 
