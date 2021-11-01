@@ -1,6 +1,4 @@
 import numpy as np
-import pandas
-import pytest
 import torch
 from common import assert_close
 
@@ -27,8 +25,8 @@ def test_binomial(N=128, P=16, T=1000, T_burnin=500):
     weights = samples.weight / samples.weight.sum()
 
     pip = np.dot(samples.add_prob.T, weights)
-    assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.1)
-    assert_close(pip[2:], np.zeros(P - 2), atol=0.05)
+    assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
+    assert_close(pip[2:], np.zeros(P - 2), atol=0.1)
 
 
 def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
@@ -51,5 +49,5 @@ def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
     assert nu > 2.0 and nu < 10.0
 
     pip = np.dot(samples.add_prob.T, weights)
-    assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.1)
-    assert_close(pip[2:], np.zeros(P - 2), atol=0.05)
+    assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
+    assert_close(pip[2:], np.zeros(P - 2), atol=0.1)

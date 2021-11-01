@@ -17,7 +17,7 @@ from .util import leave_one_out, safe_cholesky
 
 class CountLikelihoodSampler(MCMCSampler):
     def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01,
-                 log_nu_rw_scale=0.03, omega_mh=True, psi0=None):
+                 log_nu_rw_scale=0.03, omega_mh=True, psi0=None, init_nu=5.0, xi_target=0.25):
         super().__init__()
         if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):
             raise ValueError('CountLikelihoodSampler supports two modes of operation. ' +
@@ -40,6 +40,9 @@ class CountLikelihoodSampler(MCMCSampler):
             if not (psi0.shape == Y.shape or psi0.shape == ()):
                 raise ValueError("psi0 should either be a scalar or a one-dimensional array with " +
                                  "the same number of elements as Y.")
+            if init_nu <= 0.0:
+                raise ValueError("init_nu must be positive.")
+            self.init_nu = init_nu
             self.psi0 = psi0
             self.log_nu_rw_scale = log_nu_rw_scale
         else:
@@ -59,6 +62,8 @@ class CountLikelihoodSampler(MCMCSampler):
             raise ValueError("tau must be non-negative.")
         if log_nu_rw_scale < 0.0 and self.negbin:
             raise ValueError("log_nu_rw_scale must be non-negative.")
+        if xi_target <= 0.0 or xi_target >= 1.0:
+            raise ValueError("xi_target must be in the interval (0, 1).")
 
         self.h = S / self.P
         self.explore = explore / self.P
@@ -67,10 +72,9 @@ class CountLikelihoodSampler(MCMCSampler):
 
         self.epsilon = 1.0e-18
         self.xi = torch.tensor([5.0])
-        self.xi_target = 0.25
+        self.xi_target = xi_target
 
         self.rng = np.random.default_rng(0)
-        self.L_active = None
         self.omega_mh = omega_mh
         self.uniform_dist = Uniform(0.0, X.new_ones(1)[0])
 
@@ -80,14 +84,14 @@ class CountLikelihoodSampler(MCMCSampler):
     def initialize_sample(self):
         self.accepted_omega_updates = 0
         self.attempted_omega_updates = 0
-        self.acc_probs = []
+        self.acceptance_probs = []
 
         if not self.negbin:
             log_nu = None
             _omega = torch.from_numpy(random_polyagamma(self.TC_np, random_state=self.rng)).type_as(self.Xb)
         else:
-            log_nu = torch.tensor(math.log(3.0))
-            _omega = torch.from_numpy(random_polyagamma(self.Y.data.cpu().numpy() + log_nu.exp().item(),
+            log_nu = torch.tensor(math.log(self.init_nu))
+            _omega = torch.from_numpy(random_polyagamma(self.Y.data.cpu().numpy() + self.init_nu,
                                                         random_state=self.rng)).type_as(self.Xb)
 
         _psi0 = self.psi0 - log_nu if self.negbin else 0.0
@@ -112,15 +116,17 @@ class CountLikelihoodSampler(MCMCSampler):
                                  _active=torch.tensor([], dtype=torch.int64),
                                  _activeb=torch.tensor([self.P], dtype=torch.int64))
 
-        sample = self.sample_beta(sample)  # populate self.L_active
+        sample = self.sample_beta(sample)  # populate self._L_active
         sample = self._compute_probs(sample)
         return sample
 
-    def _compute_add_prob(self, sample, return_log_odds=False):
+    def _compute_add_prob(self, sample):
         active, activeb = sample._active, sample._activeb
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
         num_active = active.size(-1)
-        assert num_active < self.P and num_active <= self.N
+        assert num_active < self.P, "The MCMC sampler has been driven into a regime where " +\
+            "all covariates have been selected. Are you sure you have chosen a reasonable prior? " +\
+            "Are you sure there is signal in your data?"
 
         X_omega = self.Xb * sample._omega.sqrt().unsqueeze(-1)
         X_omega_k = X_omega[:, inactive]
@@ -129,8 +135,8 @@ class CountLikelihoodSampler(MCMCSampler):
         X_omega_active = X_omega[:, activeb]
         Z_active = sample._Z[activeb]
 
-        Zt_active = trisolve(Z_active.unsqueeze(-1), self.L_active, upper=False)[0].squeeze(-1)
-        Xt_active = trisolve(X_omega_active.t(), self.L_active, upper=False)[0].t()
+        Zt_active = trisolve(Z_active.unsqueeze(-1), self._L_active, upper=False)[0].squeeze(-1)
+        Xt_active = trisolve(X_omega_active.t(), self._L_active, upper=False)[0].t()
         XtZt_active = einsum("np,p->n", Xt_active, Zt_active)
 
         XX_k = norm(X_omega_k, dim=0).pow(2.0)
@@ -151,7 +157,7 @@ class CountLikelihoodSampler(MCMCSampler):
             Zt_active_loo_sq = trisolve(Z_active_loo.unsqueeze(-1),
                                         L_XX_active_loo, upper=False)[0].squeeze(-1).pow(2.0).sum(-1)
             log_det_ratio_active = L_XX_active_loo.diagonal(dim1=-1, dim2=-2).log().sum(-1) -\
-                self.L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + self.half_log_tau
+                self._L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + self.half_log_tau
         elif num_active == 1:
             tau_plus_omega = self.tau + sample._omega.sum()
             Zt_active_loo_sq = sample._kappa_omega.sum().pow(2.0) / tau_plus_omega
@@ -170,20 +176,16 @@ class CountLikelihoodSampler(MCMCSampler):
         log_odds[inactive] = log_odds_inactive
         log_odds[active] = log_odds_active
 
-        if return_log_odds:
-            return log_odds
-
-        add_prob = sigmoid(log_odds)
-        return add_prob
+        return log_odds
 
     def _compute_probs(self, sample):
-        sample.add_prob = self._compute_add_prob(sample)
+        sample.add_prob = sigmoid(self._compute_add_prob(sample))
 
         gamma = sample.gamma.double()
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
         i_prob = 0.5 * (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
 
-        if self.t <= self.T_burnin:
+        if self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
 
         sample._i_prob = torch.cat([self.xi, i_prob])
@@ -213,16 +215,16 @@ class CountLikelihoodSampler(MCMCSampler):
         Xb_active = self.Xb[:, activeb]
         precision = Xb_active.t() @ (sample._omega.unsqueeze(-1) * Xb_active)
         precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-        self.L_active = safe_cholesky(precision)
+        self._L_active = safe_cholesky(precision)
 
         sample.beta.zero_()
         sample.beta_mean.zero_()
 
-        beta_active = chosolve(sample._Z[activeb].unsqueeze(-1), self.L_active).squeeze(-1)
+        beta_active = chosolve(sample._Z[activeb].unsqueeze(-1), self._L_active).squeeze(-1)
         sample.beta_mean[activeb] = beta_active
         sample.beta[activeb] = beta_active + \
             trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
-                     self.L_active, upper=False)[0].squeeze(-1)
+                     self._L_active, upper=False)[0].squeeze(-1)
 
         sample._psi = torch.mv(Xb_active, beta_active)
         return sample
@@ -264,7 +266,7 @@ class CountLikelihoodSampler(MCMCSampler):
             accept = min(1.0, (accept1 + accept2 + accept3 + accept4).exp().item())
 
             if self.t >= self.T_burnin:
-                self.acc_probs.append(accept)
+                self.acceptance_probs.append(accept)
             accept = self.uniform_dist.sample().item() < accept
 
             if self.t >= self.T_burnin:
@@ -282,7 +284,7 @@ class CountLikelihoodSampler(MCMCSampler):
             sample.beta_mean[activeb] = beta_mean_prop
             sample.beta.zero_()
             sample.beta[activeb] = beta_prop
-            self.L_active = L_prop
+            self._L_active = L_prop
 
         return sample
 
@@ -340,7 +342,7 @@ class CountLikelihoodSampler(MCMCSampler):
         accept = min(1.0, (accept1 + accept2 + accept3).exp().item())
 
         if self.t >= self.T_burnin:
-            self.acc_probs.append(accept)
+            self.acceptance_probs.append(accept)
 
         accept = self.uniform_dist.sample().item() < accept
         self.attempted_omega_updates += 1
@@ -350,7 +352,7 @@ class CountLikelihoodSampler(MCMCSampler):
             sample.log_nu = log_nu_prop
             sample._omega = omega_prop
             sample._psi = psi_prop
-            self.L_active = L_prop
+            self._L_active = L_prop
             sample._kappa = kappa_prop
             sample._psi0 = psi0_prop
             sample._kappa_omega = kappa_omega_prop
