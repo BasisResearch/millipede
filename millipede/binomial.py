@@ -21,7 +21,10 @@ class CountLikelihoodSampler(MCMCSampler):
         super().__init__()
         assert (TC is None and psi0 is not None) or (TC is not None and psi0 is None)
 
-        self.Xb = torch.cat([X, torch.ones(X.size(0), 1)], dim=-1)
+        self.dtype = X.dtype
+        self.device = X.device
+
+        self.Xb = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
         self.Y = Y
         self.Y64 = self.Y.type_as(X)
         self.tau = tau
@@ -55,12 +58,10 @@ class CountLikelihoodSampler(MCMCSampler):
         self.rng = np.random.default_rng(0)
         self.L_active = None
         self.omega_mh = omega_mh
-        self.one = torch.ones_like(self.Xb[0, 0])
+        self.uniform_dist = Uniform(0.0, X.new_ones(1)[0])
 
-        self.uniform_dist = Uniform(0.0, torch.ones_like(self.one))
-
-        s = "Initialized {}-PGSampler with (N, P, S, epsilon) = ({}, {}, {:.1f}, {:.1f})"
-        print(s.format("NegBin" if self.negbin else "Binomial", self.N, self.P, S, explore))
+        s = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = ({}, {}, {:.1f}, {:.1f})"
+        print(s.format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, S, explore))
 
     def initialize_sample(self):
         self.accepted_omega_updates = 0
@@ -81,11 +82,11 @@ class CountLikelihoodSampler(MCMCSampler):
         _Z = einsum("np,n->p", self.Xb, _kappa_omega)
 
         sample = SimpleNamespace(gamma=torch.zeros(self.P).bool(),
-                                 add_prob=torch.zeros(self.P),
-                                 _i_prob=torch.zeros(self.P),
-                                 _psi=torch.zeros(self.N),
-                                 beta_mean=torch.zeros(self.P + 1),
-                                 beta=torch.zeros(self.P + 1),
+                                 add_prob=self.Xb.new_zeros(self.P),
+                                 _i_prob=self.Xb.new_zeros(self.P),
+                                 _psi=self.Xb.new_zeros(self.N),
+                                 beta_mean=self.Xb.new_zeros(self.P + 1),
+                                 beta=self.Xb.new_zeros(self.P + 1),
                                  _omega=_omega,
                                  _idx=0,
                                  weight=0,
@@ -206,7 +207,8 @@ class CountLikelihoodSampler(MCMCSampler):
         beta_active = chosolve(sample._Z[activeb].unsqueeze(-1), self.L_active).squeeze(-1)
         sample.beta_mean[activeb] = beta_active
         sample.beta[activeb] = beta_active + \
-            trisolve(torch.randn(activeb.size(-1), 1), self.L_active, upper=False)[0].squeeze(-1)
+            trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
+                     self.L_active, upper=False)[0].squeeze(-1)
 
         sample._psi = torch.mv(Xb_active, beta_active)
         return sample
@@ -233,7 +235,8 @@ class CountLikelihoodSampler(MCMCSampler):
         log_target_prop, L_prop = compute_log_target(omega_prop)
         beta_mean_prop = chosolve(sample._Z[activeb].unsqueeze(-1), L_prop).squeeze(-1)
         beta_prop = beta_mean_prop + \
-            trisolve(torch.randn(activeb.size(-1), 1), L_prop, upper=False)[0].squeeze(-1)
+            trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
+                     L_prop, upper=False)[0].squeeze(-1)
         psi_prop = torch.mv(Xb_active, beta_mean_prop)
 
         if self.omega_mh:
@@ -300,7 +303,8 @@ class CountLikelihoodSampler(MCMCSampler):
         log_target_prop, L_prop = compute_log_target(omega_prop, Z_prop)
         beta_mean_prop = chosolve(Z_prop[activeb].unsqueeze(-1), L_prop).squeeze(-1)
         beta_prop = beta_mean_prop + \
-            trisolve(torch.randn(activeb.size(-1), 1), L_prop, upper=False)[0].squeeze(-1)
+            trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
+                     L_prop, upper=False)[0].squeeze(-1)
 
         psi_prop = torch.mv(Xb_active, beta_mean_prop)
         log_target_curr, _ = compute_log_target(sample._omega, sample._Z)
