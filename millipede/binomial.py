@@ -154,7 +154,7 @@ class CountLikelihoodSampler(MCMCSampler):
             X_active_loo = X_omega[:, active_loob].permute(1, 2, 0)  # I I N
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I I
             XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-            # XX_active_loo[-1, -1].add_(self.tau_bias - self.tau)
+            XX_active_loo[:, -1, -1].add_(self.tau_bias - self.tau)
 
             Z_active_loo = sample._Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)
@@ -163,7 +163,7 @@ class CountLikelihoodSampler(MCMCSampler):
             log_det_ratio_active = L_XX_active_loo.diagonal(dim1=-1, dim2=-2).log().sum(-1) -\
                 self._L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + self.half_log_tau
         elif num_active == 1:
-            tau_plus_omega = self.tau + sample._omega.sum()
+            tau_plus_omega = self.tau_bias + sample._omega.sum()
             Zt_active_loo_sq = sample._kappa_omega.sum().pow(2.0) / tau_plus_omega
             Xom_active = X_omega[:, active].squeeze(-1)
             G_k_inv = Xom_active.pow(2.0).sum() + self.tau -\
@@ -219,6 +219,7 @@ class CountLikelihoodSampler(MCMCSampler):
         Xb_active = self.Xb[:, activeb]
         precision = Xb_active.t() @ (sample._omega.unsqueeze(-1) * Xb_active)
         precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+        precision[-1, -1].add_(self.tau_bias - self.tau)
         self._L_active = safe_cholesky(precision)
 
         sample.beta.zero_()
@@ -245,6 +246,7 @@ class CountLikelihoodSampler(MCMCSampler):
         def compute_log_target(omega):
             precision = Xb_active.t() @ (omega.unsqueeze(-1) * Xb_active)
             precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+            precision[-1, -1].add_(self.tau_bias - self.tau)
 
             L = safe_cholesky(precision)
             LZ = trisolve(sample._Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)

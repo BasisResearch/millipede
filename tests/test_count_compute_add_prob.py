@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import pytest
 import torch
 from common import assert_close
 from torch import zeros
@@ -7,7 +8,8 @@ from torch import zeros
 from millipede import CountLikelihoodSampler
 
 
-def test_compute_add_prob(N=36, P=9, tau=0.47, tau_bias=0.11, atol=1.0e-7):
+@pytest.mark.parametrize("P", [4, 7])
+def test_compute_add_prob(P, N=36, tau=0.47, tau_bias=0.13, atol=1.0e-7):
     X = torch.randn(N, P).double()
     Xb = torch.cat([X, torch.ones(X.size(0), 1)], dim=-1).double()
     TC = 10 * torch.ones(N).long()
@@ -26,7 +28,6 @@ def test_compute_add_prob(N=36, P=9, tau=0.47, tau_bias=0.11, atol=1.0e-7):
         F = torch.inverse(F_inv)
         ZFZ = (torch.mv(F, Z[ind]) * Z[ind]).sum(0)
         logdet = -torch.logdet(precision) + torch.logdet(F_inv)
-        # logdet = torch.logdet(Xbom[:, ind].t() @ Xbom[:, ind] / precision + torch.eye(len(ind)))
         return 0.5 * ZFZ - 0.5 * logdet
 
     sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1, tau=tau, tau_bias=tau_bias)
