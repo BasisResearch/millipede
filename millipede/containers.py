@@ -62,11 +62,15 @@ class StreamingSampleContainer(object):
             self._pip = sample.add_prob * sample.weight
             self._beta = sample.beta * sample.weight
             self._gamma = sample.gamma * sample.weight
+            if hasattr(sample, 'log_nu'):
+                self._log_nu = sample.log_nu * sample.weight
         else:
             factor = 1.0 - 1.0 / self._num_samples
             self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
             self._beta = factor * self._beta + (sample.beta * sample.weight) / self._num_samples
             self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples
+            if hasattr(sample, 'log_nu'):
+                self._log_nu = factor * self._log_nu + (sample.log_nu * sample.weight) / self._num_samples
 
     @cached_property
     def _normalizer(self):
@@ -79,6 +83,10 @@ class StreamingSampleContainer(object):
     @cached_property
     def beta(self):
         return self._normalizer * self._beta
+
+    @cached_property
+    def log_nu(self):
+        return self._normalizer * self._log_nu
 
     @cached_property
     def conditional_beta(self):

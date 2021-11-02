@@ -58,6 +58,8 @@ class CountLikelihoodSampler(MCMCSampler):
             raise ValueError("S must satisfy 0 < S < P")
         if tau <= 0.0:
             raise ValueError("tau must be positive.")
+        if tau_bias <= 0.0:
+            raise ValueError("tau_bias must be positive.")
         if explore < 0.0:
             raise ValueError("tau must be non-negative.")
         if log_nu_rw_scale < 0.0 and self.negbin:
@@ -69,6 +71,7 @@ class CountLikelihoodSampler(MCMCSampler):
         self.explore = explore / self.P
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
         self.half_log_tau = 0.5 * math.log(tau)
+        self.tau_bias = tau_bias
 
         self.epsilon = 1.0e-18
         self.xi = torch.tensor([5.0])
@@ -151,6 +154,7 @@ class CountLikelihoodSampler(MCMCSampler):
             X_active_loo = X_omega[:, active_loob].permute(1, 2, 0)  # I I N
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I I
             XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+            # XX_active_loo[-1, -1].add_(self.tau_bias - self.tau)
 
             Z_active_loo = sample._Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)

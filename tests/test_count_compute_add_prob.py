@@ -7,7 +7,7 @@ from torch import zeros
 from millipede import CountLikelihoodSampler
 
 
-def test_compute_add_prob(N=36, P=9, tau=0.47, atol=1.0e-8):
+def test_compute_add_prob(N=36, P=9, tau=0.47, tau_bias=0.11, atol=1.0e-7):
     X = torch.randn(N, P).double()
     Xb = torch.cat([X, torch.ones(X.size(0), 1)], dim=-1).double()
     TC = 10 * torch.ones(N).long()
@@ -20,12 +20,16 @@ def test_compute_add_prob(N=36, P=9, tau=0.47, atol=1.0e-8):
     Z = torch.einsum("np,n->p", Xb, kappa)
 
     def compute_log_factor(ind):
-        F = torch.inverse(Xbom[:, ind].t() @ Xbom[:, ind] + tau * torch.eye(len(ind)))
+        precision = tau * torch.eye(len(ind))
+        precision[-1, -1] = tau_bias
+        F_inv = Xbom[:, ind].t() @ Xbom[:, ind] + precision
+        F = torch.inverse(F_inv)
         ZFZ = (torch.mv(F, Z[ind]) * Z[ind]).sum(0)
-        logdet = torch.logdet(Xbom[:, ind].t() @ Xbom[:, ind] / tau + torch.eye(len(ind)))
+        logdet = -torch.logdet(precision) + torch.logdet(F_inv)
+        # logdet = torch.logdet(Xbom[:, ind].t() @ Xbom[:, ind] / precision + torch.eye(len(ind)))
         return 0.5 * ZFZ - 0.5 * logdet
 
-    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1, tau=tau)
+    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1, tau=tau, tau_bias=tau_bias)
 
     def compute_log_factor_ratio(ind1, ind0):
         return compute_log_factor(ind1) - compute_log_factor(ind0) + sampler.log_h_ratio

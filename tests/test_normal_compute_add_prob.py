@@ -30,31 +30,42 @@ def check_gammas(sampler, include_bias, P, compute_log_factor_ratio):
     # TEST GAMMA = 1 0 0
     sample = get_sample([1] + [0] * (P - 1), include_bias)
     log_odds = sampler._compute_add_prob(sample)
+
+    assert_close(compute_log_factor_ratio([0], []), log_odds[0], atol=1.0e-7)
     for p in range(1, P):
         assert_close(compute_log_factor_ratio([0, p], [0]), log_odds[p], atol=1.0e-7)
 
     # TEST GAMMA = 1 1 0
     sample = get_sample([1, 1] + [0] * (P - 2), include_bias)
     log_odds = sampler._compute_add_prob(sample)
+
+    assert_close(compute_log_factor_ratio([0, 1], [1]), log_odds[0], atol=1.0e-7)
+    assert_close(compute_log_factor_ratio([0, 1], [0]), log_odds[1], atol=1.0e-7)
     for p in range(2, P):
         assert_close(compute_log_factor_ratio([0, 1, p], [0, 1]), log_odds[p], atol=1.0e-7)
 
     # TEST GAMMA = 1 1 1
     sample = get_sample([1, 1, 1] + [0] * (P - 3), include_bias)
     log_odds = sampler._compute_add_prob(sample)
+
+    assert_close(compute_log_factor_ratio([0, 1, 2], [1, 2]), log_odds[0], atol=1.0e-7)
+    assert_close(compute_log_factor_ratio([0, 1, 2], [0, 2]), log_odds[1], atol=1.0e-7)
+    assert_close(compute_log_factor_ratio([0, 1, 2], [0, 1]), log_odds[2], atol=1.0e-7)
     for p in range(3, P):
         assert_close(compute_log_factor_ratio([0, 1, 2, p], [0, 1, 2]), log_odds[p], atol=1.0e-7)
 
 
-@pytest.mark.parametrize("precompute_XX", [False, True])
-@pytest.mark.parametrize("include_bias", [False, True])
-def test_isotropic_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4, tau=0.47, tau_bias=0.11):
+@pytest.mark.parametrize("P", [4, 7])
+@pytest.mark.parametrize("precompute_XX", [True, False])
+@pytest.mark.parametrize("include_bias", [True, False])
+def test_isotropic_compute_add_log_prob(P, precompute_XX, include_bias, N=5, tau=0.47, tau_bias=0.11):
     X = torch.randn(N, P).double()
     if include_bias:
         X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
 
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
-    sampler = NormalLikelihoodSampler(X, Y, S=1, c=0.0, tau=tau, tau_bias=tau_bias, include_bias=include_bias,
+    sampler = NormalLikelihoodSampler(X, Y, S=1.0, c=0.0,
+                                      tau=tau, tau_bias=tau_bias, include_bias=include_bias,
                                       precompute_XX=precompute_XX, prior="isotropic")
     YY = sampler.YY
     Z = sampler.Z
@@ -77,9 +88,10 @@ def test_isotropic_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4, t
     check_gammas(sampler, include_bias, P, compute_log_factor_ratio)
 
 
+@pytest.mark.parametrize("P", [4, 5])
 @pytest.mark.parametrize("precompute_XX", [False, True])
 @pytest.mark.parametrize("include_bias", [False, True])
-def test_gprior_compute_add_log_prob(precompute_XX, include_bias, N=5, P=4):
+def test_gprior_compute_add_log_prob(P, precompute_XX, include_bias, N=5):
     X = torch.randn(N, P).double()
     if include_bias:
         X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)

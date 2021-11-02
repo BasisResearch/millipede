@@ -18,6 +18,6 @@ def test_containers(P=5):
         c1(sample)
         c2(sample)
 
-    assert_close(c1.pip, c2.pip, atol=1.0e-14)
-    assert_close(c1.beta, c2.beta, atol=1.0e-14)
-    assert_close(c1.conditional_beta, c2.conditional_beta, atol=1.0e-14)
+    assert_close(c1.pip, c2.pip, atol=1.0e-12)
+    assert_close(c1.beta, c2.beta, atol=1.0e-12)
+    assert_close(c1.conditional_beta, c2.conditional_beta, atol=1.0e-12)

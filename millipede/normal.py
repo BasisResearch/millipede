@@ -35,9 +35,13 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.prior = prior
         self.X = X
         self.Y = Y
-        self.tau = tau if prior == 'isotropic' else 0.0
-        self.tau_bias = tau_bias if prior == 'isotropic' and include_bias else 0.0
         self.c = c if prior == 'gprior' else 0.0
+        self.tau = tau if prior == 'isotropic' else 0.0
+
+        if prior == 'isotropic':
+            self.tau_bias = tau_bias if include_bias else tau
+        else:
+            self.tau_bias = 0.0
 
         if include_bias:
             self.X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
@@ -181,7 +185,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             if self.prior == 'isotropic':
                 XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
                 if self.include_bias:
-                    XX_active_loo[-1, -1].add_(self.tau_bias - self.tau)
+                    XX_active_loo[:, -1, -1].add_(self.tau_bias - self.tau)
 
             Z_active_loo = self.Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)
@@ -192,8 +196,16 @@ class NormalLikelihoodSampler(MCMCSampler):
                     L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + 0.5 * math.log(self.tau)
 
         elif num_active == 1:
-            Zt_active_loo_sq = 0.0
-            log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
+            if not self.include_bias:
+                Zt_active_loo_sq = 0.0
+                if self.prior == 'isotropic':
+                    log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
+            else:
+                Zt_active_loo_sq = norm(self.Z[self.P]).pow(2.0) / (self.tau_bias + float(self.N))
+                if self.prior == 'isotropic':
+                    G_inv = norm(self.X[:, active], dim=0).pow(2.0) + self.tau \
+                        - self.X[:, active].sum().pow(2.0) / (self.tau_bias + float(self.N))
+                    log_det_active = -0.5 * G_inv.log() + 0.5 * math.log(self.tau)
         elif num_active == 0:
             Zt_active_loo_sq = 0.0
             log_det_active = torch.tensor(0.0, device=self.device, dtype=self.dtype)
