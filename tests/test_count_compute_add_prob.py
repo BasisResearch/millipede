@@ -13,7 +13,7 @@ def test_compute_add_prob(P, N=36, tau=0.47, tau_bias=0.13, atol=1.0e-7):
     X = torch.randn(N, P).double()
     Xb = torch.cat([X, torch.ones(X.size(0), 1)], dim=-1).double()
     TC = 10 * torch.ones(N).long()
-    TC[N // 2] = 5
+    TC[N // 2:] = 5
     Y = torch.distributions.Binomial(total_count=TC, logits=X[:, 0]).sample()
     kappa = Y - 0.5 * TC
     omega = torch.randn(N).exp().double()

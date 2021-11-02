@@ -234,7 +234,7 @@ class CountLikelihoodSampler(MCMCSampler):
         sample._psi = torch.mv(Xb_active, beta_active)
         return sample
 
-    def sample_omega_binomial(self, sample):
+    def sample_omega_binomial(self, sample, _save_intermediates=None):
         omega_prop = random_polyagamma(self.TC_np, sample._psi.data.cpu().numpy(), random_state=self.rng)
         omega_prop = torch.from_numpy(omega_prop).type_as(self.Xb)
 
@@ -270,6 +270,14 @@ class CountLikelihoodSampler(MCMCSampler):
             accept3 = 0.5 * (dot(omega_prop, sample._psi.pow(2.0)) - dot(sample._omega, psi_prop.pow(2.0)))
             accept4 = dot(self.TC64, softplus(psi_prop) - softplus(sample._psi))
             accept = min(1.0, (accept1 + accept2 + accept3 + accept4).exp().item())
+
+            if _save_intermediates is not None:
+                _save_intermediates['omega'] = sample._omega.data.cpu().numpy()
+                _save_intermediates['omega_prop'] = omega_prop.data.cpu().numpy()
+                _save_intermediates['psi'] = sample._psi.data.cpu().numpy()
+                _save_intermediates['psi_prop'] = psi_prop.data.cpu().numpy()
+                _save_intermediates['TC_np'] = self.TC_np
+                _save_intermediates['accept234'] = accept2 + accept3 + accept4
 
             if self.t >= self.T_burnin:
                 self.acceptance_probs.append(accept)
