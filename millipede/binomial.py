@@ -302,7 +302,7 @@ class CountLikelihoodSampler(MCMCSampler):
 
         return sample
 
-    def sample_omega_nb(self, sample):
+    def sample_omega_nb(self, sample, _save_intermediates=None):
         activeb = sample._activeb
         Xb_active = self.Xb[:, activeb]
 
@@ -355,14 +355,24 @@ class CountLikelihoodSampler(MCMCSampler):
                   - dot(T_prop, softplus(psi_mixed)) + dot(T_curr, softplus(psi_mixed_prop))
         accept = min(1.0, (accept1 + accept2 + accept3).exp().item())
 
+        if _save_intermediates is not None:
+            _save_intermediates['omega'] = sample._omega.data.cpu().numpy()
+            _save_intermediates['omega_prop'] = omega_prop.data.cpu().numpy()
+            _save_intermediates['psi_mixed'] = psi_mixed.data.cpu().numpy()
+            _save_intermediates['psi_mixed_prop'] = psi_mixed_prop.data.cpu().numpy()
+            _save_intermediates['T_curr'] = T_curr
+            _save_intermediates['T_prop'] = T_prop
+            _save_intermediates['accept23'] = accept2 + accept3
+
         if self.t >= self.T_burnin:
             self.acceptance_probs.append(accept)
-
         accept = self.uniform_dist.sample().item() < accept
-        self.attempted_omega_updates += 1
-        self.accepted_omega_updates += int(accept)
 
-        if accept or self.t < self.T_burnin // 5:
+        if self.t >= self.T_burnin:
+            self.attempted_omega_updates += 1
+            self.accepted_omega_updates += int(accept)
+
+        if accept or self.t < self.T_burnin // 4:
             sample.log_nu = log_nu_prop
             sample._omega = omega_prop
             sample._psi = psi_prop
