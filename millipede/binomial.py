@@ -49,7 +49,7 @@ class CountLikelihoodSampler(MCMCSampler):
             if not Y.shape == TC.shape or Y.ndim != 1:
                 raise ValueError("Y and TC should both be one-dimensional arrays.")
             self.TC = TC
-            self.TC_np = TC.data.cpu().numpy()
+            self.TC_np = TC.data.cpu().numpy().copy()
             self.TC64 = self.TC.type_as(X)
 
         if self.N != Y.size(-1):

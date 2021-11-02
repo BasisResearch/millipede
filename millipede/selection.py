@@ -184,8 +184,8 @@ class BinomialLikelihoodVariableSelector(object):
             self.weights = np.array(container._weights)
 
         self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
-        self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
-        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
+        self.beta = pd.Series(container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
+        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ['Intercept'],
                                           name="Conditional Coefficient")
 
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
