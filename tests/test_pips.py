@@ -28,7 +28,7 @@ def test_linear_correlated(prior, precompute_XX, include_bias, N=128, P=16, bias
                                       tau=0.01, c=50.0, include_bias=include_bias,
                                       tau_bias=1.0e-6)
 
-    for t, (burned, s) in enumerate(sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+    for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
         if burned:
             samples.append(namespace_to_numpy(s))
 

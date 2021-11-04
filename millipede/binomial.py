@@ -30,7 +30,7 @@ class CountLikelihoodSampler(MCMCSampler):
 
         self.Xb = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
         self.Y = Y
-        self.Y64 = self.Y.type_as(X)
+        self.Y_float = self.Y.type_as(X)
         self.tau = tau
         self.N, self.P = X.shape
 
@@ -50,7 +50,7 @@ class CountLikelihoodSampler(MCMCSampler):
                 raise ValueError("Y and TC should both be one-dimensional arrays.")
             self.TC = TC
             self.TC_np = TC.data.cpu().numpy().copy()
-            self.TC64 = self.TC.type_as(X)
+            self.TC_float = self.TC.type_as(X)
 
         if self.N != Y.size(-1):
             raise ValueError("X and Y should be of shape (N, P) and (N,), respectively.")
@@ -196,7 +196,7 @@ class CountLikelihoodSampler(MCMCSampler):
 
         return sample
 
-    def gibbs_move(self, sample):
+    def mcmc_move(self, sample):
         self.t += 1
 
         sample._idx = Categorical(probs=sample._i_prob).sample() - 1
@@ -266,17 +266,17 @@ class CountLikelihoodSampler(MCMCSampler):
             delta_psi = psi_prop - sample._psi
 
             accept1 = log_target_prop - log_target_curr
-            accept2 = dot(sample._kappa - self.Y64, delta_psi)
+            accept2 = dot(sample._kappa - self.Y_float, delta_psi)
             accept3 = 0.5 * (dot(omega_prop, sample._psi.pow(2.0)) - dot(sample._omega, psi_prop.pow(2.0)))
-            accept4 = dot(self.TC64, softplus(psi_prop) - softplus(sample._psi))
+            accept4 = dot(self.TC_float, softplus(psi_prop) - softplus(sample._psi))
             accept = min(1.0, (accept1 + accept2 + accept3 + accept4).exp().item())
 
             if _save_intermediates is not None:
-                _save_intermediates['omega'] = sample._omega.data.cpu().numpy()
-                _save_intermediates['omega_prop'] = omega_prop.data.cpu().numpy()
-                _save_intermediates['psi'] = sample._psi.data.cpu().numpy()
-                _save_intermediates['psi_prop'] = psi_prop.data.cpu().numpy()
-                _save_intermediates['TC_np'] = self.TC_np
+                _save_intermediates['omega'] = sample._omega.data.cpu().numpy().copy()
+                _save_intermediates['omega_prop'] = omega_prop.data.cpu().numpy().copy()
+                _save_intermediates['psi'] = sample._psi.data.cpu().numpy().copy()
+                _save_intermediates['psi_prop'] = psi_prop.data.cpu().numpy().copy()
+                _save_intermediates['TC_np'] = self.TC_np.copy()
                 _save_intermediates['accept234'] = accept2 + accept3 + accept4
 
             if self.t >= self.T_burnin:
@@ -323,6 +323,7 @@ class CountLikelihoodSampler(MCMCSampler):
         def compute_log_target(omega, Z):
             precision = Xb_active.t() @ (omega.unsqueeze(-1) * Xb_active)
             precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+            precision[-1, -1].add_(self.tau_bias - self.tau)
 
             L = safe_cholesky(precision)
             LZ = trisolve(Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)
@@ -351,7 +352,7 @@ class CountLikelihoodSampler(MCMCSampler):
                   + 0.5 * (dot(omega_prop, psi_mixed.pow(2.0)) -
                            dot(sample._omega, psi_mixed_prop.pow(2.0)))
 
-        accept3 = dot(self.Y64, psi_mixed - psi_mixed_prop) \
+        accept3 = dot(self.Y_float, psi_mixed - psi_mixed_prop) \
                   - dot(T_prop, softplus(psi_mixed)) + dot(T_curr, softplus(psi_mixed_prop))
         accept = min(1.0, (accept1 + accept2 + accept3).exp().item())
 
@@ -360,8 +361,9 @@ class CountLikelihoodSampler(MCMCSampler):
             _save_intermediates['omega_prop'] = omega_prop.data.cpu().numpy()
             _save_intermediates['psi_mixed'] = psi_mixed.data.cpu().numpy()
             _save_intermediates['psi_mixed_prop'] = psi_mixed_prop.data.cpu().numpy()
-            _save_intermediates['T_curr'] = T_curr
-            _save_intermediates['T_prop'] = T_prop
+            _save_intermediates['T_curr'] = T_curr.data.cpu().numpy()
+            _save_intermediates['T_prop'] = T_prop.data.cpu().numpy()
+            _save_intermediates['delta_nu'] = nu_curr.item() - nu_prop.item()
             _save_intermediates['accept23'] = accept2 + accept3
 
         if self.t >= self.T_burnin:

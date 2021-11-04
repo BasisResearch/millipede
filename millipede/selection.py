@@ -62,7 +62,7 @@ class NormalLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
@@ -165,7 +165,7 @@ class BinomialLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
@@ -264,7 +264,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))

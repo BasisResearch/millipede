@@ -237,7 +237,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
         return sample
 
-    def gibbs_move(self, sample):
+    def mcmc_move(self, sample):
         self.t += 1
         sample._idx = Categorical(probs=sample._i_prob).sample()
         sample.gamma[sample._idx] = ~sample.gamma[sample._idx]

@@ -18,7 +18,7 @@ def test_binomial(N=256, P=16, T=2200, T_burnin=300, bias=0.17):
     samples = []
     sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1.0, tau=0.01, tau_bias=1.0e-4)
 
-    for t, (burned, s) in enumerate(sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+    for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
         if burned:
             samples.append(namespace_to_numpy(s))
 
@@ -54,9 +54,9 @@ def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
     Y = torch.distributions.Poisson(Z.exp() + 0.1 * torch.rand(N)).sample()
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, psi0=0.0, TC=None, S=1.0, tau=0.01)
+    sampler = CountLikelihoodSampler(X, Y, psi0=0.0, TC=None, S=1.0, tau=0.01, tau_bias=1.0e-4)
 
-    for t, (burned, s) in enumerate(sampler.gibbs_chain(T=T, T_burnin=T_burnin)):
+    for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
         if burned:
             samples.append(namespace_to_numpy(s))
 
