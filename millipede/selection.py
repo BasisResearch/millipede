@@ -11,6 +11,15 @@ from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
 
 
+def populate_weight_stats(stats, weights, quantiles=[5.0, 10.0, 20.0, 50.0, 90.0, 95.0]):
+    q5, q10, q20, q50, q90, q95 = np.percentile(weights, quantiles).tolist()
+    s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+    stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
+    s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+    stats['Weight moments'] = s.format(weights.mean().item(), weights.std().item(),
+                                       weights.min().item(), weights.max().item())
+
+
 class NormalLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a linear model with a Normal likelihood.
@@ -93,13 +102,8 @@ class NormalLikelihoodVariableSelector(object):
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
 
         self.stats = {}
-        quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
-        q5, q10, q20, q50, q90, q95 = np.percentile(self.weights, quantiles).tolist()
-        s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
-        s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['Weight moments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
-                                                self.weights.min().item(), self.weights.max().item())
+        populate_weight_stats(self.stats, self.weights)
+
         elapsed_time = time.time() - ts[0]
         self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
         self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
@@ -189,13 +193,8 @@ class BinomialLikelihoodVariableSelector(object):
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
 
         self.stats = {}
-        quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
-        q5, q10, q20, q50, q90, q95 = np.percentile(self.weights, quantiles).tolist()
-        s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
-        s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['Weight moments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
-                                                self.weights.min().item(), self.weights.max().item())
+        populate_weight_stats(self.stats, self.weights)
+
         elapsed_time = time.time() - ts[0]
         self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
         self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
@@ -292,13 +291,8 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         self.summary = pd.concat([self.pip, self.beta, self.conditional_beta], axis=1)
 
         self.stats = {}
-        quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
-        q5, q10, q20, q50, q90, q95 = np.percentile(self.weights, quantiles).tolist()
-        s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
-        s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
-        self.stats['Weight moments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
-                                                self.weights.min().item(), self.weights.max().item())
+        populate_weight_stats(self.stats, self.weights)
+
         self.stats['nu posterior'] = '{:.3f} +- {:.3f}'.format(container.nu, container.nu_std)
         self.stats['log(nu) posterior'] = '{:.3f} +- {:.3f}'.format(container.log_nu, container.log_nu_std)
 
