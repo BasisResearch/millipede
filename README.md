@@ -8,9 +8,7 @@
     /\/\/\/\/\/\/\/\/\/\ `---
 ```
 
-# millipede 
-
-A library for bayesian variable selection
+# millipede: ### a library for bayesian variable selection
 
 
 ## Requirements
