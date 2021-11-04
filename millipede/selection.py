@@ -201,6 +201,11 @@ class BinomialLikelihoodVariableSelector(object):
         self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
         self.stats['Number of retained samples'] = T
         self.stats['Number of burn-in samples'] = T_burnin
+        self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
+        s = "Mean acc. prob.: {:.3f}  Accepted/Attempted: {}/{}"
+        s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
+                     self.sampler.attempted_omega_updates)
+        self.stats['Polya-Gamma MH stats'] = s
 
         if verbose:
             for k, v in self.stats.items():
@@ -301,6 +306,11 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
         self.stats['Number of retained samples'] = T
         self.stats['Number of burn-in samples'] = T_burnin
+        self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
+        s = "Mean acc. prob.: {:.3f}  Accepted/Attempted: {}/{}"
+        s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
+                     self.sampler.attempted_omega_updates)
+        self.stats['Polya-Gamma MH stats'] = s
 
         if verbose:
             for k, v in self.stats.items():
