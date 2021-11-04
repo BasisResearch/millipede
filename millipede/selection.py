@@ -299,7 +299,8 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
         self.stats['Weight moments'] = s.format(self.weights.mean().item(), self.weights.std().item(),
                                                 self.weights.min().item(), self.weights.max().item())
-        self.stats['Nu posterior mean'] = '{:.3f}'.format(np.exp(container.log_nu))
+        self.stats['nu posterior'] = '{:.3f} +- {:.3f}'.format(container.nu, container.nu_std)
+        self.stats['log(nu) posterior'] = '{:.3f} +- {:.3f}'.format(container.log_nu, container.log_nu_std)
 
         elapsed_time = time.time() - ts[0]
         self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)

@@ -36,6 +36,22 @@ class SimpleSampleContainer(object):
         return np.dot(self.samples.beta.T, self.weights)
 
     @cached_property
+    def log_nu(self):
+        return np.dot(self.samples.log_nu, self.weights).item()
+
+    @cached_property
+    def log_nu_std(self):
+        return np.sqrt(np.dot(np.square(self.samples.log_nu), self.weights) - self.log_nu ** 2).item()
+
+    @cached_property
+    def nu(self):
+        return np.dot(np.exp(self.samples.log_nu), self.weights).item()
+
+    @cached_property
+    def nu_std(self):
+        return np.sqrt(np.dot(np.exp(2.0 * self.samples.log_nu), self.weights) - self.nu ** 2).item()
+
+    @cached_property
     def conditional_beta(self):
         divisor = np.dot(self.samples.gamma.T, self.weights)
         if self.beta.shape != divisor.shape:
@@ -64,6 +80,9 @@ class StreamingSampleContainer(object):
             self._gamma = sample.gamma * sample.weight
             if hasattr(sample, 'log_nu'):
                 self._log_nu = sample.log_nu * sample.weight
+                self._log_nu_sq = np.square(sample.log_nu) * sample.weight
+                self._nu = np.exp(sample.log_nu) * sample.weight
+                self._nu_sq = np.exp(2.0 * sample.log_nu) * sample.weight
         else:
             factor = 1.0 - 1.0 / self._num_samples
             self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
@@ -71,6 +90,10 @@ class StreamingSampleContainer(object):
             self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples
             if hasattr(sample, 'log_nu'):
                 self._log_nu = factor * self._log_nu + (sample.log_nu * sample.weight) / self._num_samples
+                self._log_nu_sq = factor * self._log_nu_sq + (np.square(sample.log_nu) * sample.weight) / self._num_samples
+                self._nu = factor * self._nu + (np.exp(sample.log_nu) * sample.weight) / self._num_samples
+                self._nu_sq = factor * self._nu_sq + (np.exp(2.0 * sample.log_nu) * sample.weight) / self._num_samples
+
 
     @cached_property
     def _normalizer(self):
@@ -87,6 +110,18 @@ class StreamingSampleContainer(object):
     @cached_property
     def log_nu(self):
         return self._normalizer * self._log_nu
+
+    @cached_property
+    def log_nu_std(self):
+        return np.sqrt(self._normalizer * self._log_nu_sq - self.log_nu ** 2).item()
+
+    @cached_property
+    def nu(self):
+        return (self._normalizer * self._nu).item()
+
+    @cached_property
+    def nu_std(self):
+        return np.sqrt(self._normalizer * self._nu_sq - self.nu ** 2).item()
 
     @cached_property
     def conditional_beta(self):
