@@ -10,7 +10,7 @@ from millipede import CountLikelihoodSampler
 
 @pytest.mark.parametrize("P", [4, 7])
 @pytest.mark.parametrize("N", [1, 19])
-def test_compute_add_prob(P, N, tau=0.47, tau_intercept=0.13, atol=1.0e-7):
+def test_compute_add_prob(P, N, tau=0.47, tau_intercept=0.13, atol=1.0e-6):
     X = torch.randn(N, P).double()
     Xb = torch.cat([X, torch.ones(X.size(0), 1)], dim=-1).double()
     TC = 10 * torch.ones(N).long()

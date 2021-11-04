@@ -49,11 +49,12 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, N=128, P=16,
     XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
     columns = ['feat{}'.format(c) for c in range(P)] + ['response']
     dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
+
     selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=50.0,
                                                 include_intercept=include_intercept, prior=prior,
                                                 S=1.0, nu0=0.0, lambda0=0.0, precision='double')
 
-    selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency)
+    selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency, streaming=precompute_XX)
 
     assert_close(selector.pip.values, pip, atol=0.15)
     assert_close(selector.beta.values, beta, atol=0.15)

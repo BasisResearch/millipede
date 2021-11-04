@@ -4,19 +4,6 @@ import numpy as np
 import torch
 
 
-class Timer(object):
-    def __init__(self, name="TimerEvent"):
-        self.name = name
-        self.start = torch.cuda.Event(enable_timing=True)
-        self.end = torch.cuda.Event(enable_timing=True)
-        self.start.record()
-
-    def __call__(self):
-        self.end.record()
-        torch.cuda.synchronize()
-        print("[{}]  {:.5f}".format(self.name, self.start.elapsed_time(self.end)))
-
-
 def safe_cholesky(A, epsilon=1.0e-8):
     try:
         return torch.linalg.cholesky(A)

@@ -90,10 +90,10 @@ class StreamingSampleContainer(object):
             self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples
             if hasattr(sample, 'log_nu'):
                 self._log_nu = factor * self._log_nu + (sample.log_nu * sample.weight) / self._num_samples
-                self._log_nu_sq = factor * self._log_nu_sq + (np.square(sample.log_nu) * sample.weight) / self._num_samples
+                self._log_nu_sq = factor * self._log_nu_sq +\
+                    (np.square(sample.log_nu) * sample.weight) / self._num_samples
                 self._nu = factor * self._nu + (np.exp(sample.log_nu) * sample.weight) / self._num_samples
                 self._nu_sq = factor * self._nu_sq + (np.exp(2.0 * sample.log_nu) * sample.weight) / self._num_samples
-
 
     @cached_property
     def _normalizer(self):
