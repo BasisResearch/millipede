@@ -2,11 +2,13 @@
 
 # millipede 
 
+```
                           .    .
                            )  (
      _ _ _ _ _ _ _ _ _ _ _(.--.)
     {_{_{_{_{_{_{_{_{_{_{_( '_')
     /\/\/\/\/\/\/\/\/\/\/\ `--
+```
 
 A library for bayesian variable selection
 
