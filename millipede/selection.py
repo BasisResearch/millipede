@@ -117,8 +117,7 @@ class BinomialLikelihoodVariableSelector(object):
     """
     def __init__(self, dataframe, response_column, total_count_column,
                  S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
-                 precision="double", device="cpu", log_nu_rw_scale=0.03,
-                 omega_mh=True, xi_target=0.25):
+                 precision="double", device="cpu", xi_target=0.25):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -148,8 +147,7 @@ class BinomialLikelihoodVariableSelector(object):
 
         self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
-                                              log_nu_rw_scale=log_nu_rw_scale,
-                                              omega_mh=omega_mh, xi_target=xi_target)
+                                              xi_target=xi_target)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
@@ -215,8 +213,8 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     """
     def __init__(self, dataframe, response_column, psi0_column,
                  S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
-                 precision="double", device="cpu", log_nu_rw_scale=0.03,
-                 omega_mh=True, xi_target=0.25, init_nu=5.0):
+                 precision="double", device="cpu", log_nu_rw_scale=0.05,
+                 xi_target=0.25, init_nu=5.0):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -247,8 +245,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         self.sampler = CountLikelihoodSampler(X, Y, psi0=psi0, S=S, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
                                               log_nu_rw_scale=log_nu_rw_scale,
-                                              omega_mh=omega_mh, xi_target=xi_target,
-                                              init_nu=init_nu)
+                                              xi_target=xi_target, init_nu=init_nu)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:

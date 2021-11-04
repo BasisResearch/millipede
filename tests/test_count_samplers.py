@@ -64,7 +64,7 @@ def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
     weights = samples.weight / samples.weight.sum()
 
     nu = np.exp(np.dot(samples.log_nu, weights))
-    assert nu > 2.0 and nu < 10.0
+    assert nu > 2.0 and nu < 12.0
 
     pip = np.dot(samples.add_prob.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
