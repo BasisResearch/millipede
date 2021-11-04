@@ -377,7 +377,7 @@ class CountLikelihoodSampler(MCMCSampler):
             self.attempted_omega_updates += 1
             self.accepted_omega_updates += int(accept)
 
-        if accept or self.t < self.T_burnin // 4:
+        if accept or self.t < min(50, self.T_burnin // 4):
             sample.log_nu = log_nu_prop
             sample._omega = omega_prop
             sample._psi = psi_prop
