@@ -17,9 +17,9 @@ class NormalLikelihoodVariableSelector(object):
     The likelihood variance is controlled by a Inverse Gamma prior.
     """
     def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01, tau_bias=1.0e-4,
+                 prior="isotropic", tau=0.01, tau_intercept=1.0e-4,
                  nu0=0.0, lambda0=0.0, precision="double", device="cpu",
-                 include_bias=True):
+                 include_intercept=True):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -41,12 +41,12 @@ class NormalLikelihoodVariableSelector(object):
         elif device == 'gpu':
             X, Y = X.cuda(), Y.cuda()
 
-        self.include_bias = include_bias
+        self.include_intercept = include_intercept
         self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior,
-                                               tau=tau, tau_bias=tau_bias,
+                                               tau=tau, tau_intercept=tau_intercept,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
-                                               include_bias=include_bias)
+                                               include_intercept=include_intercept)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
         if not isinstance(T, int) and T > 0:
@@ -81,9 +81,9 @@ class NormalLikelihoodVariableSelector(object):
             self.weights = np.array(container._weights)
 
         self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
-        if self.include_bias:
-            self.beta = pd.Series(container.beta, index=self.X_columns + ["bias"], name="Coefficient")
-            self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ["bias"],
+        if self.include_intercept:
+            self.beta = pd.Series(container.beta, index=self.X_columns + ["intercept"], name="Coefficient")
+            self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ["intercept"],
                                               name="Conditional Coefficient")
         else:
             self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
@@ -116,7 +116,7 @@ class BinomialLikelihoodVariableSelector(object):
     Bayesian variable selection for a generalized linear model with a Binomial likelihood.
     """
     def __init__(self, dataframe, response_column, total_count_column,
-                 S=5, explore=5, tau=0.01, tau_bias=1.0e-4,
+                 S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu", log_nu_rw_scale=0.03,
                  omega_mh=True, xi_target=0.25):
 
@@ -147,7 +147,7 @@ class BinomialLikelihoodVariableSelector(object):
             X, Y, TC = X.cuda(), Y.cuda(), TC.cuda()
 
         self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, explore=explore,
-                                              tau=tau, tau_bias=tau_bias,
+                                              tau=tau, tau_intercept=tau_intercept,
                                               log_nu_rw_scale=log_nu_rw_scale,
                                               omega_mh=omega_mh, xi_target=xi_target)
 
@@ -214,7 +214,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood.
     """
     def __init__(self, dataframe, response_column, psi0_column,
-                 S=5, explore=5, tau=0.01, tau_bias=1.0e-4,
+                 S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu", log_nu_rw_scale=0.03,
                  omega_mh=True, xi_target=0.25, init_nu=5.0):
 
@@ -245,7 +245,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
             X, Y, psi0 = X.cuda(), Y.cuda(), psi0.cuda()
 
         self.sampler = CountLikelihoodSampler(X, Y, psi0=psi0, S=S, explore=explore,
-                                              tau=tau, tau_bias=tau_bias,
+                                              tau=tau, tau_intercept=tau_intercept,
                                               log_nu_rw_scale=log_nu_rw_scale,
                                               omega_mh=omega_mh, xi_target=xi_target,
                                               init_nu=init_nu)

@@ -16,7 +16,7 @@ from .util import leave_one_out, safe_cholesky
 
 
 class CountLikelihoodSampler(MCMCSampler):
-    def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01, tau_bias=1.0e-4,
+    def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01, tau_intercept=1.0e-4,
                  log_nu_rw_scale=0.03, omega_mh=True, psi0=None, init_nu=5.0, xi_target=0.25):
         super().__init__()
         if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):
@@ -58,8 +58,8 @@ class CountLikelihoodSampler(MCMCSampler):
             raise ValueError("S must satisfy 0 < S < P")
         if tau <= 0.0:
             raise ValueError("tau must be positive.")
-        if tau_bias <= 0.0:
-            raise ValueError("tau_bias must be positive.")
+        if tau_intercept <= 0.0:
+            raise ValueError("tau_intercept must be positive.")
         if explore < 0.0:
             raise ValueError("tau must be non-negative.")
         if log_nu_rw_scale < 0.0 and self.negbin:
@@ -71,7 +71,7 @@ class CountLikelihoodSampler(MCMCSampler):
         self.explore = explore / self.P
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
         self.half_log_tau = 0.5 * math.log(tau)
-        self.tau_bias = tau_bias
+        self.tau_intercept = tau_intercept
 
         self.epsilon = 1.0e-18
         self.xi = torch.tensor([5.0])
@@ -154,7 +154,7 @@ class CountLikelihoodSampler(MCMCSampler):
             X_active_loo = X_omega[:, active_loob].permute(1, 2, 0)  # I I N
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I I
             XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-            XX_active_loo[:, -1, -1].add_(self.tau_bias - self.tau)
+            XX_active_loo[:, -1, -1].add_(self.tau_intercept - self.tau)
 
             Z_active_loo = sample._Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)
@@ -163,7 +163,7 @@ class CountLikelihoodSampler(MCMCSampler):
             log_det_ratio_active = L_XX_active_loo.diagonal(dim1=-1, dim2=-2).log().sum(-1) -\
                 self._L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + self.half_log_tau
         elif num_active == 1:
-            tau_plus_omega = self.tau_bias + sample._omega.sum()
+            tau_plus_omega = self.tau_intercept + sample._omega.sum()
             Zt_active_loo_sq = sample._kappa_omega.sum().pow(2.0) / tau_plus_omega
             Xom_active = X_omega[:, active].squeeze(-1)
             G_k_inv = Xom_active.pow(2.0).sum() + self.tau -\
@@ -219,7 +219,7 @@ class CountLikelihoodSampler(MCMCSampler):
         Xb_active = self.Xb[:, activeb]
         precision = Xb_active.t() @ (sample._omega.unsqueeze(-1) * Xb_active)
         precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-        precision[-1, -1].add_(self.tau_bias - self.tau)
+        precision[-1, -1].add_(self.tau_intercept - self.tau)
         self._L_active = safe_cholesky(precision)
 
         sample.beta.zero_()
@@ -246,7 +246,7 @@ class CountLikelihoodSampler(MCMCSampler):
         def compute_log_target(omega):
             precision = Xb_active.t() @ (omega.unsqueeze(-1) * Xb_active)
             precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-            precision[-1, -1].add_(self.tau_bias - self.tau)
+            precision[-1, -1].add_(self.tau_intercept - self.tau)
 
             L = safe_cholesky(precision)
             LZ = trisolve(sample._Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)
@@ -323,7 +323,7 @@ class CountLikelihoodSampler(MCMCSampler):
         def compute_log_target(omega, Z):
             precision = Xb_active.t() @ (omega.unsqueeze(-1) * Xb_active)
             precision.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-            precision[-1, -1].add_(self.tau_bias - self.tau)
+            precision[-1, -1].add_(self.tau_intercept - self.tau)
 
             L = safe_cholesky(precision)
             LZ = trisolve(Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)

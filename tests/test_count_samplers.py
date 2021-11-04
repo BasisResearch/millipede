@@ -7,16 +7,16 @@ from millipede import BinomialLikelihoodVariableSelector, CountLikelihoodSampler
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-def test_binomial(N=256, P=16, T=2200, T_burnin=300, bias=0.17):
+def test_binomial(N=256, P=16, T=2200, T_burnin=300, intercept=0.17):
     torch.manual_seed(1)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.005 * torch.randn(N, 2).double()
-    Y = torch.distributions.Bernoulli(logits=Z + bias + 0.01 * torch.randn(N)).sample().double()
+    Y = torch.distributions.Bernoulli(logits=Z + intercept + 0.01 * torch.randn(N)).sample().double()
     TC = torch.ones(N).double()
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1.0, tau=0.01, tau_bias=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1.0, tau=0.01, tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
         if burned:
@@ -32,7 +32,7 @@ def test_binomial(N=256, P=16, T=2200, T_burnin=300, bias=0.17):
     beta = np.dot(np.transpose(samples.beta), weights)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
     assert_close(beta[2:P], np.zeros(P - 2), atol=0.05)
-    assert_close(beta[-1].item(), bias, atol=0.1)
+    assert_close(beta[-1].item(), intercept, atol=0.1)
 
     # test selector
     XYTC = torch.cat([X, Y.unsqueeze(-1), TC.unsqueeze(-1)], axis=-1)
@@ -54,7 +54,7 @@ def test_negative_binomial(N=128, P=16, T=2000, T_burnin=500):
     Y = torch.distributions.Poisson(Z.exp() + 0.1 * torch.rand(N)).sample()
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, psi0=0.0, TC=None, S=1.0, tau=0.01, tau_bias=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, psi0=0.0, TC=None, S=1.0, tau=0.01, tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
         if burned:

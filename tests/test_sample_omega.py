@@ -16,7 +16,7 @@ def test_sample_omega_binomial(P, N):
     TC[N // 2:] = 4
     Y = torch.distributions.Binomial(total_count=TC, logits=X[:, 0]).sample()
 
-    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1.0, tau=0.01, tau_bias=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1.0, tau=0.01, tau_intercept=1.0e-4)
     sampler.t = 0
     sampler.T_burnin = 0
 
@@ -45,12 +45,12 @@ def test_sample_omega_binomial(P, N):
 
 @pytest.mark.parametrize("P", [5, 9])
 @pytest.mark.parametrize("N", [3, 6])
-def test_sample_omega_negative_binomial(P, N, bias=-0.77):
+def test_sample_omega_negative_binomial(P, N, intercept=-0.77):
     X = torch.randn(N, P).double()
-    logits = bias + X[:, 0] + 0.2 * torch.randn(N)
+    logits = intercept + X[:, 0] + 0.2 * torch.randn(N)
     Y = torch.distributions.Poisson(logits.exp()).sample()
 
-    sampler = CountLikelihoodSampler(X, Y, psi0=bias, TC=None, S=1.0, tau=0.01, tau_bias=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, psi0=intercept, TC=None, S=1.0, tau=0.01, tau_intercept=1.0e-4)
     sampler.t = 0
     sampler.T_burnin = 0
 

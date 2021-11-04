@@ -20,8 +20,8 @@ class NormalLikelihoodSampler(MCMCSampler):
     suffice to use `NormalLikelihoodVariableSelector`.
     """
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01, tau_bias=1.0e-4, compute_betas=False,
-                 nu0=0.0, lambda0=0.0, include_bias=True):
+                 prior="isotropic", tau=0.01, tau_intercept=1.0e-4, compute_betas=False,
+                 nu0=0.0, lambda0=0.0, include_intercept=True):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
@@ -39,11 +39,11 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.tau = tau if prior == 'isotropic' else 0.0
 
         if prior == 'isotropic':
-            self.tau_bias = tau_bias if include_bias else tau
+            self.tau_intercept = tau_intercept if include_intercept else tau
         else:
-            self.tau_bias = 0.0
+            self.tau_intercept = 0.0
 
-        if include_bias:
+        if include_intercept:
             self.X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
             self.Pb = self.P + 1
         else:
@@ -77,7 +77,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.N_nu0 = self.N + nu0
 
         self.compute_betas = compute_betas
-        self.include_bias = include_bias
+        self.include_intercept = include_intercept
 
         self.c_one_c = self.c / (1.0 + self.c)
         self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
@@ -102,7 +102,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         if self.compute_betas:
             sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
 
-        if self.include_bias:
+        if self.include_intercept:
             sample._activeb = torch.tensor([self.P], device=self.device, dtype=torch.int64)
 
         sample = self._compute_probs(sample)
@@ -110,7 +110,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     def _compute_add_prob(self, sample, return_log_odds=False):
         active = sample._active
-        activeb = sample._activeb if self.include_bias else sample._active
+        activeb = sample._activeb if self.include_intercept else sample._active
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
         num_active = active.size(-1)
 
@@ -125,7 +125,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             XX_k = self.XX_diag[inactive]
 
-        if self.include_bias or num_active > 0:
+        if self.include_intercept or num_active > 0:
             X_activeb = self.X[:, activeb]
             Z_active = self.Z[activeb]
             if self.XX is not None:
@@ -134,8 +134,8 @@ class NormalLikelihoodSampler(MCMCSampler):
                 XX_active = X_activeb.t() @ X_activeb
             if self.prior == 'isotropic':
                 XX_active.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-                if self.include_bias:
-                    XX_active[-1, -1].add_(self.tau_bias - self.tau)
+                if self.include_intercept:
+                    XX_active[-1, -1].add_(self.tau_intercept - self.tau)
 
             L_active = safe_cholesky(XX_active)
 
@@ -160,7 +160,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             if self.prior == 'isotropic':
                 log_det_inactive = -0.5 * torch.log1p(XX_k / self.tau)
 
-        if self.compute_betas and (num_active > 0 or self.include_bias):
+        if self.compute_betas and (num_active > 0 or self.include_intercept):
             beta_active = trisolve(Zt_active.unsqueeze(-1), L_active.t(), upper=True)[0].squeeze(-1)
             sample.beta = self.X.new_zeros(self.Pb)
             if self.prior == 'gprior':
@@ -173,7 +173,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         if num_active > 1:
             active_loo = leave_one_out(active)  # I  I-1
 
-            if self.include_bias:
+            if self.include_intercept:
                 active_loob = torch.cat([active_loo,
                                          (self.P * active_loo.new_ones(active_loo.size(0))).long().unsqueeze(-1)],
                                         dim=-1)
@@ -184,8 +184,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I-1 I-1
             if self.prior == 'isotropic':
                 XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-                if self.include_bias:
-                    XX_active_loo[:, -1, -1].add_(self.tau_bias - self.tau)
+                if self.include_intercept:
+                    XX_active_loo[:, -1, -1].add_(self.tau_intercept - self.tau)
 
             Z_active_loo = self.Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)
@@ -196,15 +196,15 @@ class NormalLikelihoodSampler(MCMCSampler):
                     L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + 0.5 * math.log(self.tau)
 
         elif num_active == 1:
-            if not self.include_bias:
+            if not self.include_intercept:
                 Zt_active_loo_sq = 0.0
                 if self.prior == 'isotropic':
                     log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
             else:
-                Zt_active_loo_sq = norm(self.Z[self.P]).pow(2.0) / (self.tau_bias + float(self.N))
+                Zt_active_loo_sq = norm(self.Z[self.P]).pow(2.0) / (self.tau_intercept + float(self.N))
                 if self.prior == 'isotropic':
                     G_inv = norm(self.X[:, active], dim=0).pow(2.0) + self.tau \
-                        - self.X[:, active].sum().pow(2.0) / (self.tau_bias + float(self.N))
+                        - self.X[:, active].sum().pow(2.0) / (self.tau_intercept + float(self.N))
                     log_det_active = -0.5 * G_inv.log() + 0.5 * math.log(self.tau)
         elif num_active == 0:
             Zt_active_loo_sq = 0.0
@@ -244,7 +244,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         sample._active = torch.nonzero(sample.gamma).squeeze(-1)
         sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=self.device)]) \
-            if self.include_bias else sample._active
+            if self.include_intercept else sample._active
 
         sample = self._compute_probs(sample)
         sample.weight = sample._i_prob.mean().reciprocal()
