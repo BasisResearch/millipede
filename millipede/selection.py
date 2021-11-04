@@ -48,7 +48,7 @@ class NormalLikelihoodVariableSelector(object):
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept)
 
-    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
+    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
         if not isinstance(T_burnin, int) and T_burnin > 0:
@@ -62,7 +62,7 @@ class NormalLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
@@ -151,7 +151,7 @@ class BinomialLikelihoodVariableSelector(object):
                                               log_nu_rw_scale=log_nu_rw_scale,
                                               omega_mh=omega_mh, xi_target=xi_target)
 
-    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
+    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
         if not isinstance(T_burnin, int) and T_burnin > 0:
@@ -165,7 +165,7 @@ class BinomialLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
@@ -250,7 +250,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
                                               omega_mh=omega_mh, xi_target=xi_target,
                                               init_nu=init_nu)
 
-    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True):
+    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
         if not isinstance(T_burnin, int) and T_burnin > 0:
@@ -264,7 +264,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin)):
+        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))

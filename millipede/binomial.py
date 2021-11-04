@@ -77,17 +77,20 @@ class CountLikelihoodSampler(MCMCSampler):
         self.xi = torch.tensor([5.0])
         self.xi_target = xi_target
 
-        self.rng = np.random.default_rng(0)
         self.omega_mh = omega_mh
         self.uniform_dist = Uniform(0.0, X.new_ones(1)[0])
 
         s = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = ({}, {}, {:.1f}, {:.1f})"
         print(s.format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, S, explore))
 
-    def initialize_sample(self):
+    def initialize_sample(self, seed=None):
         self.accepted_omega_updates = 0
         self.attempted_omega_updates = 0
         self.acceptance_probs = []
+
+        self.rng = np.random.default_rng(seed)
+        if seed is not None:
+            torch.manual_seed(seed)
 
         if not self.negbin:
             log_nu = None

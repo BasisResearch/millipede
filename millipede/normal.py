@@ -93,7 +93,10 @@ class NormalLikelihoodSampler(MCMCSampler):
                 " = ({}, {}, {:.1f}, {:.1f})"
             print(s.format(self.N, self.P, S, self.c))
 
-    def initialize_sample(self):
+    def initialize_sample(self, seed=None):
+        if seed is not None:
+            torch.manual_seed(seed)
+
         sample = SimpleNamespace(gamma=torch.zeros(self.P, device=self.device).bool(),
                                  add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
                                  _i_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
