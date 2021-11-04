@@ -1,21 +1,21 @@
 [![Build Status](https://github.com/broadinstitute/millipede/workflows/CI/badge.svg)](https://github.com/broadinstitute/millipede/actions)
 
-# millipede 
+```
+                       ..    ..
+          millipede      )  (
+     _ _ _ _ _ _ _ _ _ _(.--.)
+    {_{_{_{_{_{_{_{_{_{_( '_')
+    /\/\/\/\/\/\/\/\/\/\ `---
+```
 
-```
-                          .    .
-                           )  (
-     _ _ _ _ _ _ _ _ _ _ _(.--.)
-    {_{_{_{_{_{_{_{_{_{_{_( '_')
-    /\/\/\/\/\/\/\/\/\/\/\ `--
-```
+# millipede 
 
 A library for bayesian variable selection
 
 
 ## Requirements
 
-[PyTorch](https://pytorch.org/) and [pandas](https://pandas.pydata.org/).
+[PyTorch](https://pytorch.org/), [pandas](https://pandas.pydata.org/), and [polyagamma](https://github.com/zoj613/polyagamma).
 
 
 ## Installation instructions
