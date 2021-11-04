@@ -36,6 +36,10 @@ class SimpleSampleContainer(object):
         return np.dot(self.samples.beta.T, self.weights)
 
     @cached_property
+    def beta_std(self):
+        return np.sqrt(np.dot(np.square(self.samples.beta.T), self.weights) - np.square(self.beta))
+
+    @cached_property
     def log_nu(self):
         return np.dot(self.samples.log_nu, self.weights).item()
 
@@ -77,6 +81,7 @@ class StreamingSampleContainer(object):
         if self._num_samples == 1.0:
             self._pip = sample.add_prob * sample.weight
             self._beta = sample.beta * sample.weight
+            self._beta_sq = np.square(sample.beta) * sample.weight
             self._gamma = sample.gamma * sample.weight
             if hasattr(sample, 'log_nu'):
                 self._log_nu = sample.log_nu * sample.weight
@@ -87,6 +92,7 @@ class StreamingSampleContainer(object):
             factor = 1.0 - 1.0 / self._num_samples
             self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
             self._beta = factor * self._beta + (sample.beta * sample.weight) / self._num_samples
+            self._beta_sq = factor * self._beta_sq + (np.square(sample.beta) * sample.weight) / self._num_samples
             self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples
             if hasattr(sample, 'log_nu'):
                 self._log_nu = factor * self._log_nu + (sample.log_nu * sample.weight) / self._num_samples
@@ -106,6 +112,10 @@ class StreamingSampleContainer(object):
     @cached_property
     def beta(self):
         return self._normalizer * self._beta
+
+    @cached_property
+    def beta_std(self):
+        return np.sqrt(self._normalizer * self._beta_sq - np.square(self.beta))
 
     @cached_property
     def log_nu(self):

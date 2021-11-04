@@ -95,3 +95,6 @@ def test_negative_binomial(streaming, N=128, P=16, T=3000, T_burnin=500, psi0=0.
 
     assert_close(selector.pip.values, pip, atol=0.1)
     assert_close(selector.beta.values, beta, atol=0.1)
+
+    if streaming:
+        print(selector.summary)

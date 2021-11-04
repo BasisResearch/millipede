@@ -26,3 +26,4 @@ def test_containers(P=5):
     assert_close(c1.log_nu_std, c2.log_nu_std, atol=1.0e-12)
     assert_close(c1.nu, c2.nu, atol=1.0e-12)
     assert_close(c1.nu_std, c2.nu_std, atol=1.0e-12)
+    assert_close(c1.beta_std, c2.beta_std, atol=1.0e-12)
