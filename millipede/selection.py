@@ -75,7 +75,7 @@ class NormalLikelihoodVariableSelector(object):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
-            if verbose and t % report_frequency == 0 or t == T + T_burnin - 1:
+            if verbose and (t % report_frequency == 0 or t == T + T_burnin - 1):
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
                 s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
@@ -91,17 +91,23 @@ class NormalLikelihoodVariableSelector(object):
 
         self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
         if self.include_intercept:
-            self.beta = pd.Series(container.beta, index=self.X_columns + ["intercept"], name="Coefficient StdDev")
-            self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ["intercept"], name="Coefficient")
+            self.beta = pd.Series(container.beta, index=self.X_columns + ["intercept"], name="Coefficient")
+            self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ["intercept"],
+                                      name="Coefficient StdDev")
             self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ["intercept"],
                                               name="Conditional Coefficient")
+            self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns + ["intercept"],
+                                                  name="Conditional Coefficient StdDev")
         else:
             self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
             self.beta_std = pd.Series(container.beta_std, index=self.X_columns, name="Coefficient StdDev")
             self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
                                               name="Conditional Coefficient")
+            self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns,
+                                                  name="Conditional Coefficient StdDev")
 
-        self.summary = pd.concat([self.pip, self.beta, self.beta_std, self.conditional_beta], axis=1)
+        self.summary = pd.concat([self.pip, self.beta, self.beta_std,
+                                  self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
         populate_weight_stats(self.stats, self.weights)
@@ -192,8 +198,11 @@ class BinomialLikelihoodVariableSelector(object):
         self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ['Intercept'], name="Coefficient StdDev")
         self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ['Intercept'],
                                           name="Conditional Coefficient")
+        self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns + ['Intercept'],
+                                              name="Conditional Coefficient StdDev")
 
-        self.summary = pd.concat([self.pip, self.beta, self.beta_std, self.conditional_beta], axis=1)
+        self.summary = pd.concat([self.pip, self.beta, self.beta_std,
+                                  self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
         populate_weight_stats(self.stats, self.weights)
@@ -291,8 +300,11 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ['Intercept'], name="Coefficient StdDev")
         self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ['Intercept'],
                                           name="Conditional Coefficient")
+        self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns + ['Intercept'],
+                                              name="Conditional Coefficienti StdDev")
 
-        self.summary = pd.concat([self.pip, self.beta, self.beta_std, self.conditional_beta], axis=1)
+        self.summary = pd.concat([self.pip, self.beta, self.beta_std,
+                                  self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
         populate_weight_stats(self.stats, self.weights)

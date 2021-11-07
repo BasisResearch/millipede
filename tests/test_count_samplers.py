@@ -33,10 +33,10 @@ def test_binomial(streaming, N=256, P=16, T=2200, T_burnin=300, intercept=0.17):
 
     pip = np.dot(samples.add_prob.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
-    assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
+    assert_close(pip[2:], np.zeros(P - 2), atol=0.2)
 
     beta = np.dot(np.transpose(samples.beta), weights)
-    assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
+    assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(beta[2:P], np.zeros(P - 2), atol=0.05)
     assert_close(beta[-1].item(), intercept, atol=0.1)
 
@@ -93,8 +93,8 @@ def test_negative_binomial(streaming, N=128, P=16, T=3000, T_burnin=500, psi0=0.
                                                           precision='double', device='cpu')
     selector.run(T=T, T_burnin=T_burnin, report_frequency=500, streaming=streaming)
 
-    assert_close(selector.pip.values, pip, atol=0.1)
-    assert_close(selector.beta.values, beta, atol=0.1)
+    assert_close(selector.pip.values, pip, atol=0.15)
+    assert_close(selector.beta.values, beta, atol=0.15)
 
     if streaming:
         print(selector.summary)
