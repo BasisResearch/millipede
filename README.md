@@ -46,7 +46,7 @@ selector.run(T=1000, T_burnin=500)
 print(selector.summary)
 ```
 
-See the Jupyter notebooks in the [`notebooks/`](https://github.com/broadinstitute/millipede/tree/master/notebooks) directory for detailed example usage.
+See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/millipede/tree/master/notebooks) directory for detailed example usage.
 
 
 ## Contact information
