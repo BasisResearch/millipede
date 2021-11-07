@@ -30,6 +30,7 @@ setup(
     install_requires=[
         "torch>=1.9",
         "pandas",
+        "polyagamma==1.3.2",
     ],
     extras_require={
         "test": [
