@@ -63,7 +63,6 @@ def test_negative_binomial(streaming, N=150, P=16, T=3000, T_burnin=500, psi0=0.
     noise = torch.exp(0.1 * torch.randn(N))
     Y = torch.distributions.Poisson(Z.exp() * noise).sample()
 
-    torch.manual_seed(seed)
     samples = []
     sampler = CountLikelihoodSampler(X, Y, psi0=psi0, TC=None, S=1.0, tau=0.01, tau_intercept=1.0e-4)
 
