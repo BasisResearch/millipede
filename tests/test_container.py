@@ -2,12 +2,14 @@ import math
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 from common import assert_close
 
 from millipede.containers import SimpleSampleContainer, StreamingSampleContainer
 
 
-def test_containers(P=101, atol=1.0e-7):
+@pytest.mark.parametrize("include_intercept", [True, False])
+def test_containers(include_intercept, P=101, atol=1.0e-7):
     c1 = SimpleSampleContainer()
     c2 = StreamingSampleContainer()
 
@@ -15,7 +17,9 @@ def test_containers(P=101, atol=1.0e-7):
         gamma = np.random.binomial(1, 0.5 * np.ones(P))
         beta = np.random.randn(P)
         beta = beta * np.array(gamma, dtype=beta.dtype)
-        beta = np.concatenate([beta, np.random.rand(1)])
+        if include_intercept:
+            beta = np.concatenate([beta, np.random.rand(1)])
+
         sample = SimpleNamespace(gamma=gamma,
                                  beta=beta,
                                  add_prob=np.random.rand(P),
@@ -29,7 +33,7 @@ def test_containers(P=101, atol=1.0e-7):
     assert_close(c1.conditional_beta, c2.conditional_beta, atol=atol)
     assert_close(c1.conditional_beta_std, c2.conditional_beta_std, atol=atol)
 
-    for p in range(P + 1):
+    for p in range(P + int(include_intercept)):
         beta = c1.samples.beta[:, p]
         nz = np.nonzero(beta)[0]
         beta = beta[nz]
