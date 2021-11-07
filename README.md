@@ -29,6 +29,25 @@ cd millipede
 pip install .
 ```
 
+## Usage
+
+Using millipede is easy:
+```python
+# create a VariableSelector object appropriate to your datatype
+selector = NormalLikelihoodVariableSelector(dataframe,  # pass in the data
+                                            'Response', # indicate the column of responses
+                                            S=1,        # specify the expected number of covariates to include a priori
+                                           )
+
+# run the MCMC algorithm to compute posterior compusion probabilities and other posterior quantities of interest
+selector.run(T=1000, T_burnin=500)
+
+# inspect the results
+print(selector.summary)
+```
+
+See the Jupyter notebooks in the `notebooks/` directory for detailed example usage.
+
 
 ## Contact information
 
