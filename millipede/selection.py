@@ -179,7 +179,7 @@ class BinomialLikelihoodVariableSelector(object):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
-            if verbose and t % report_frequency == 0 or t == T + T_burnin - 1:
+            if verbose and (t % report_frequency == 0 or t == T + T_burnin - 1):
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
                 s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
@@ -281,7 +281,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
-            if verbose and t % report_frequency == 0 or t == T + T_burnin - 1:
+            if verbose and (t % report_frequency == 0 or t == T + T_burnin - 1):
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
                 s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
