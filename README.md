@@ -59,7 +59,7 @@ See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/m
 
 The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
 Currently the response `Y` can be any of the following:
-- continuous-valued &nbsp;&nbsp; &nbsp; => &nbsp;&nbsp; use `NormalLikelihoodVariableSelector`
+- continuous-valued &nbsp;&nbsp; => &nbsp;&nbsp; use `NormalLikelihoodVariableSelector`
 - binary-valued &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use `BernoulliLikelihoodVariableSelector`
 - bounded counts  &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use `BinomialLikelihoodVariableSelector`
 - unbounded counts  &nbsp;&nbsp; => &nbsp;&nbsp; use `NegativeBinomialLikelihoodVariableSelector`
