@@ -61,9 +61,9 @@ Currently the response `Y` can be any of the following:
 
 ## Scalability
 
-Roughly speaking, the cost of the algorithm is proportion to `N x P`, where `N` is the total
-number of data points and `P` is the total number of covariates. 
-For an approximate guide to hardware requirements please consult the following table:
+Roughly speaking, the cost of the MCMC algorithms implemented in millipede is proportional
+ to `N x P`, where `N` is the total number of data points and `P` is the total number of covariates. 
+For an **approximate** guide to hardware requirements please consult the following table:
 
 | Regime                | Expectations           |
 | ----------------------|------------------------|
