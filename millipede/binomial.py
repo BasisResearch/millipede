@@ -17,7 +17,8 @@ from .util import leave_one_out, safe_cholesky
 
 class CountLikelihoodSampler(MCMCSampler):
     def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01, tau_intercept=1.0e-4,
-                 log_nu_rw_scale=0.05, omega_mh=True, psi0=None, init_nu=5.0, xi_target=0.25):
+                 log_nu_rw_scale=0.05, omega_mh=True, psi0=None, init_nu=5.0, xi_target=0.25,
+                 verbose_constructor=True):
         super().__init__()
         if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):
             raise ValueError('CountLikelihoodSampler supports two modes of operation. ' +
@@ -81,7 +82,8 @@ class CountLikelihoodSampler(MCMCSampler):
         self.uniform_dist = Uniform(0.0, X.new_ones(1)[0])
 
         s = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = ({}, {}, {:.1f}, {:.1f})"
-        print(s.format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, S, explore))
+        if verbose_constructor:
+            print(s.format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, S, explore))
 
     def initialize_sample(self, seed=None):
         self.accepted_omega_updates = 0

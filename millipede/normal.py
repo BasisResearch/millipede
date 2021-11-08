@@ -21,7 +21,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     """
     def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
                  prior="isotropic", tau=0.01, tau_intercept=1.0e-4, compute_betas=False,
-                 nu0=0.0, lambda0=0.0, include_intercept=True):
+                 nu0=0.0, lambda0=0.0, include_intercept=True, verbose_constructor=True):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
@@ -84,14 +84,15 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.hc_prefactor = self.log_h_ratio - self.log_one_c_sqrt
         self.epsilon = 1.0e-18
 
-        if self.prior == 'isotropic':
-            s = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)" +\
-                " = ({}, {}, {:.1f}, {:.3f})"
-            print(s.format(self.N, self.P, S, self.tau))
-        else:
-            s = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)" +\
-                " = ({}, {}, {:.1f}, {:.1f})"
-            print(s.format(self.N, self.P, S, self.c))
+        if verbose_constructor:
+            if self.prior == 'isotropic':
+                s = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)" +\
+                    " = ({}, {}, {:.1f}, {:.3f})"
+                print(s.format(self.N, self.P, S, self.tau))
+            else:
+                s = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)" +\
+                    " = ({}, {}, {:.1f}, {:.1f})"
+                print(s.format(self.N, self.P, S, self.c))
 
     def initialize_sample(self, seed=None):
         if seed is not None:

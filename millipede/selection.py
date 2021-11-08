@@ -55,7 +55,8 @@ class NormalLikelihoodVariableSelector(object):
                                                precompute_XX=precompute_XX, prior=prior,
                                                tau=tau, tau_intercept=tau_intercept,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
-                                               include_intercept=include_intercept)
+                                               include_intercept=include_intercept,
+                                               verbose_constructor=False)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
@@ -159,7 +160,8 @@ class BinomialLikelihoodVariableSelector(object):
 
         self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
-                                              xi_target=xi_target)
+                                              xi_target=xi_target,
+                                              verbose_constructor=False)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
@@ -275,7 +277,8 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         self.sampler = CountLikelihoodSampler(X, Y, psi0=psi0, S=S, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
                                               log_nu_rw_scale=log_nu_rw_scale,
-                                              xi_target=xi_target, init_nu=init_nu)
+                                              xi_target=xi_target, init_nu=init_nu,
+                                              verbose_constructor=False)
 
     def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
         if not isinstance(T, int) and T > 0:
