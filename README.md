@@ -55,8 +55,8 @@ The covariates `X` are essentially arbitrary and can be continuous-valued, binar
 Currently the response `Y` can be any of the following:
 - continuous-valued  &nbsp; => &nbsp; use `NormalLikelihoodVariableSelector`
 - binary-valued &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; => &nbsp; use `BernoulliLikelihoodVariableSelector`
-- bounded counts  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; => &nbsp; use `BinomialLikelihoodVariableSelector`
-- unbounded counts  &nbsp; &nbsp; &nbsp; => &nbsp; use `NegativeBinomialLikelihoodVariableSelector`
+- bounded counts  &nbsp; &nbsp; &nbsp; => &nbsp; use `BinomialLikelihoodVariableSelector`
+- unbounded counts  &nbsp; => &nbsp; use `NegativeBinomialLikelihoodVariableSelector`
 
 
 ## Contact information
