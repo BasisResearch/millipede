@@ -49,6 +49,16 @@ print(selector.summary)
 See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/millipede/tree/master/notebooks) directory for detailed example usage.
 
 
+## Supported data types 
+
+The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
+Currently the response `Y` can be any of the following:
+- continuous-valued => use `NormalLikelihoodVariableSelector`
+- binary-valued => use `BernoulliLikelihoodVariableSelector`
+- bounded counts => use `BinomialLikelihoodVariableSelector`
+- unbounded counts => use `NegativeBinomialLikelihoodVariableSelector`
+
+
 ## Contact information
 
 Martin Jankowiak: mjankowi@broadinstitute.org
