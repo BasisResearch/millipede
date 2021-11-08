@@ -12,7 +12,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("prior", ["isotropic", "gprior"])
 @pytest.mark.parametrize("include_intercept", [True, False])
 def test_linear_correlated(prior, precompute_XX, include_intercept, N=128, P=16, intercept=2.34,
-                           T=3000, T_burnin=200, report_frequency=1600, seed=1):
+                           T=2000, T_burnin=200, report_frequency=1100, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
