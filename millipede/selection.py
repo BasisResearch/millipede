@@ -223,6 +223,20 @@ class BinomialLikelihoodVariableSelector(object):
                 print('{}: '.format(k), v)
 
 
+class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
+    """
+    Bayesian variable selection for a generalized linear model with a Bernoulli likelihood.
+    """
+    def __init__(self, dataframe, response_column,
+                 S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
+                 precision="double", device="cpu", xi_target=0.25):
+
+        dataframe['DummyTotalCount'] = 1.0
+        super().__init__(dataframe, response_column, 'DummyTotalCount', S=S, explore=explore,
+                         tau=tau, tau_intercept=tau_intercept, precision=precision,
+                         device=device, xi_target=xi_target)
+
+
 class NegativeBinomialLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood.
