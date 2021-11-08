@@ -13,7 +13,8 @@
 
 ## Requirements
 
-[PyTorch](https://pytorch.org/), [pandas](https://pandas.pydata.org/), and [polyagamma](https://github.com/zoj613/polyagamma). 
+millipede requires Python 3.8 and the following Python packages: [PyTorch](https://pytorch.org/), [pandas](https://pandas.pydata.org/), and [polyagamma](https://github.com/zoj613/polyagamma). 
+
 Note that if you wish to run millipede on a GPU you need to install PyTorch with CUDA support. 
 In particular if you run the following command from your terminal it should report True:
 ```

@@ -40,7 +40,7 @@ setup(
             "pytest>=5.0",
         ],
     },
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     keywords="bayesian variable selection",
     license="Apache 2.0",
     classifiers=[
