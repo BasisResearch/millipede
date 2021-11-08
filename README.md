@@ -59,6 +59,19 @@ Currently the response `Y` can be any of the following:
 - unbounded counts  &nbsp; => &nbsp; use `NegativeBinomialLikelihoodVariableSelector`
 
 
+## Scalability
+
+Roughly speaking, the cost of the algorithm is proportion to `N x P`, where `N` is the total
+number of data points and `P` is the total number of covariates. 
+For an approximate guide to hardware requirements please consult the following table:
+
+| Regime                | Expectations           |
+| ----------------------|------------------------|
+| `N x P < 10^7`        | Use a CPU              |
+| `10^7 < N x P < 10^9` | Use a GPU              |
+| `10^9 < N x P`        | You may be out of luck |
+
+
 ## Contact information
 
 Martin Jankowiak: mjankowi@broadinstitute.org
