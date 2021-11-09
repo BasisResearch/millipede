@@ -80,3 +80,65 @@ Using millipede is easy:
     print(selector.summary)
 
 See the Jupyter notebooks in the `notebooks <https://github.com/broadinstitute/millipede/tree/master/notebooks>`__ directory for detailed example usage.
+
+
+Supported data types
+--------------------
+
+The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
+Currently the response `Y` can be any of the following:
+
+* continuous-valued => use `NormalLikelihoodVariableSelector`
+* binary-valued => use `BernoulliLikelihoodVariableSelector`
+* bounded counts => use `BinomialLikelihoodVariableSelector`
+* unbounded counts => use `NegativeBinomialLikelihoodVariableSelector`
+
+Scalability
+-----------
+
+Roughly speaking, the cost of the MCMC algorithms implemented in millipede is proportional
+to `N x P`, where `N` is the total number of data points and `P` is the total number of covariates.
+For an **approximate** guide to hardware requirements please consult the following guidelines:
+
+* If `N x P < 10^7` use a CPU
+* If `10^7 < N x P < 10^9` use a GPU
+* If `10^9 < N x P` you may be out of luck
+
+
+Contact information
+-------------------
+
+Martin Jankowiak: mjankowi@broadinstitute.org
+
+
+References
+----------
+
+* Zanella, G. and Roberts, G., 2019. `Scalable importance tempering and Bayesian variable selection <https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316>`__. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
+
+* Jankowiak, M., 2021. `Fast Bayesian Variable Selection in Binomial and Negative Binomial Regression <https://arxiv.org/abs/2106.14981>`__ arXiv preprint arXiv:2106.14981.
+
+Citations
+---------
+
+If you use millipede please consider citing:
+
+::
+
+    @article{zanella2019scalable,
+      title={Scalable importance tempering and Bayesian variable selection},
+      author={Zanella, Giacomo and Roberts, Gareth},
+      journal={Journal of the Royal Statistical Society: Series B (Statistical Methodology)},
+      volume={81},
+      number={3},
+      pages={489--517},
+      year={2019},
+      publisher={Wiley Online Library}
+    }
+
+    @article{jankowiak2021fast,
+      title={Fast Bayesian Variable Selection in Binomial and Negative Binomial Regression},
+      author={Jankowiak, Martin},
+      journal={arXiv preprint arXiv:2106.14981},
+      year={2021}
+    }
