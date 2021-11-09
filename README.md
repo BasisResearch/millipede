@@ -1,11 +1,11 @@
 [![Build Status](https://github.com/broadinstitute/millipede/workflows/CI/badge.svg)](https://github.com/broadinstitute/millipede/actions)
 
 ```
-                                 ..    ..
-                    millipede      )  (
-               _ _ _ _ _ _ _ _ _ _(.--.)
-              {_{_{_{_{_{_{_{_{_{_( '_')
-              /\/\/\/\/\/\/\/\/\/\ `---
+                                           ..    ..
+                              millipede      )  (
+                         _ _ _ _ _ _ _ _ _ _(.--.)
+                        {_{_{_{_{_{_{_{_{_{_( '_')
+                        /\/\/\/\/\/\/\/\/\/\ `---
 ```
 
 # millipede: A library for Bayesian variable selection
