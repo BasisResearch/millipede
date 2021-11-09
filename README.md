@@ -57,7 +57,7 @@ cd millipede
 pip install .
 ```
 
-## Usage
+## Basic usage
 
 Using millipede is easy:
 ```python

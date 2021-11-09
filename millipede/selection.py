@@ -24,11 +24,39 @@ class NormalLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a linear model with a Normal likelihood.
     The likelihood variance is controlled by a Inverse Gamma prior.
+
+    Usage::
+
+        selector = NormalLikelihoodVariableSelector(dataframe, 'response', ...)
+        selector.run(T=2000, T_burnin=1000)
+        print(selector.summary)
+
+    :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
+        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+    :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
+    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'. Defaults to 'isotropic'.
+    :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
+    :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
+    :param float c: Controls the precision of the coefficients in the gprior. Defaults to 100.0.
+    :param float nu0: Controls the prior over the precision in the Normal likelihood. Defaults to 0.0.
+    :param float lambda0: Controls the prior over the precision in the Normal likelihood. Defaults to 0.0.
+    :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
+        floating point precision. Defaults to 'double'.
+    :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
+    :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
+        For expert users only.
+    :param bool precompute_XX: Whether the matrix X^t @ X should be pre-computed. Defaults to False. Note
+        that setting this to True may result in out-of-memory errors for sufficiently large covariate matrices.
     """
-    def __init__(self, dataframe, response_column, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01, tau_intercept=1.0e-4,
-                 nu0=0.0, lambda0=0.0, precision="double", device="cpu",
-                 include_intercept=True):
+    def __init__(self, dataframe, response_column,
+                 S=5, prior="isotropic",
+                 include_intercept=True,
+                 tau=0.01, tau_intercept=1.0e-4,
+                 c=100.0,
+                 nu0=0.0, lambda0=0.0,
+                 precision="double", device="cpu",
+                 explore=5, precompute_XX=False):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -127,10 +155,32 @@ class NormalLikelihoodVariableSelector(object):
 class BinomialLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a generalized linear model with a Binomial likelihood.
+
+    Usage::
+
+        selector = BinomialLikelihoodVariableSelector(dataframe, 'response', 'total_count', ...)
+        selector.run(T=2000, T_burnin=1000)
+        print(selector.summary)
+
+    :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
+        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+    :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
+    :param str total_count_column: The name of the column in `dataframe` that contains the total count for each data point.
+    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
+    :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
+    :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
+        floating point precision. Defaults to 'double'.
+    :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
+    :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
+        For expert users only.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
+        Defaults to 0.25. For expert users only.
     """
     def __init__(self, dataframe, response_column, total_count_column,
-                 S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
-                 precision="double", device="cpu", xi_target=0.25):
+                 S=5, tau=0.01, tau_intercept=1.0e-4,
+                 precision="double", device="cpu",
+                 explore=5, xi_target=0.25):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -228,10 +278,31 @@ class BinomialLikelihoodVariableSelector(object):
 class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     """
     Bayesian variable selection for a generalized linear model with a Bernoulli likelihood.
+
+    Usage::
+
+        selector = BernoulliLikelihoodVariableSelector(dataframe, 'response', ...)
+        selector.run(T=2000, T_burnin=1000)
+        print(selector.summary)
+
+    :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
+        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+    :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
+    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
+    :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
+    :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
+        floating point precision. Defaults to 'double'.
+    :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
+    :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
+        For expert users only.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
+        Defaults to 0.25. For expert users only.
     """
     def __init__(self, dataframe, response_column,
-                 S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
-                 precision="double", device="cpu", xi_target=0.25):
+                 S=5, tau=0.01, tau_intercept=1.0e-4,
+                 precision="double", device="cpu",
+                 explore=5, xi_target=0.25):
 
         dataframe['DummyTotalCount'] = 1.0
         super().__init__(dataframe, response_column, 'DummyTotalCount', S=S, explore=explore,
@@ -242,10 +313,36 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
 class NegativeBinomialLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood.
+
+    Usage::
+
+        selector = NegativeBinomialLikelihoodVariableSelector(dataframe, 'response', 'psi0', ...)
+        selector.run(T=2000, T_burnin=1000)
+        print(selector.summary)
+
+    :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
+        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+    :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
+    :param str psi0_column: The name of the column in `dataframe` that contains the psi0 offset for each data point.
+    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
+    :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
+    :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
+        floating point precision. Defaults to 'double'.
+    :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
+    :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for `nu` updates. Defaults to 0.05.
+        For expert users only.
+    :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
+        For expert users only.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
+        Defaults to 0.25. For expert users only.
+    :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`. Defaults to 5.0.
+        Defaults to 0.25. For expert users only.
     """
     def __init__(self, dataframe, response_column, psi0_column,
-                 S=5, explore=5, tau=0.01, tau_intercept=1.0e-4,
-                 precision="double", device="cpu", log_nu_rw_scale=0.05,
+                 S=5, tau=0.01, tau_intercept=1.0e-4,
+                 precision="double", device="cpu",
+                 log_nu_rw_scale=0.05, explore=5.0,
                  xi_target=0.25, init_nu=5.0):
 
         if precision not in ['single', 'double']:
