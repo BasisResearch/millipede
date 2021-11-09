@@ -16,9 +16,42 @@ from .util import leave_one_out, safe_cholesky
 
 
 class CountLikelihoodSampler(MCMCSampler):
-    def __init__(self, X, Y, TC=None, S=5, explore=5.0, tau=0.01, tau_intercept=1.0e-4,
-                 log_nu_rw_scale=0.05, omega_mh=True, psi0=None, init_nu=5.0, xi_target=0.25,
-                 verbose_constructor=True):
+    """
+    MCMC algorithm for Bayesian variable selection for a generalized linear model with a Binomial or
+    Negative Binomial likelihood. This class supports count-valued responses.
+
+    To define a Binomial model specify `TC` but not `psi0`.
+    To define a Negative Binomial model specify `psi0` but not `TC`.
+
+    Usage of this class is only recommended for advanced users. For most users it should
+    suffice to use one of :class:`BinomialLikelihoodVariableSelector`, :class:`BernoulliLikelihoodVariableSelector`,
+    and :class:`NegativeBinomialLikelihoodVariableSelector`.
+
+    :param tensor X: A N x P `torch.Tensor` of covariates. This is a required argument.
+    :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses. This is a required argument.
+    :param tensor TC: A N-dimensional `torch.Tensor` of non-negative arguments. This is a required argument if
+        you wish to specify a Binomial model. Defaults to None.
+    :param tensor psi0: A N-dimensional `torch.Tensor` of offsets `psi0`. This is a required argument if
+        you wish to specify a Negative Binomial model. Defaults to None.
+    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
+    :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
+    :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
+    :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for `nu` updates.
+        Defaults to 0.05. Only applicable to the Negative Binomial case.
+    :param bool omega_mh: Whether to include Metropolis-Hastings corrections during Polya-Gamma updates. Defaults
+        to True. Only applicable to the Binomial case.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
+        Defaults to 0.25.
+    :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`.
+        Defaults to 5.0. Only applicable to the Negative Binomial case.
+    :param bool verbose_constructor: Whether the class constructor should print some information to
+        stdout upon initialization.
+    """
+    def __init__(self, X, Y, TC=None, psi0=None,
+                 S=5, tau=0.01, tau_intercept=1.0e-4,
+                 explore=5.0, log_nu_rw_scale=0.05, omega_mh=True,
+                 xi_target=0.25, init_nu=5.0, verbose_constructor=True):
         super().__init__()
         if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):
             raise ValueError('CountLikelihoodSampler supports two modes of operation. ' +

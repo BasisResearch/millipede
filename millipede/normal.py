@@ -15,9 +15,10 @@ class NormalLikelihoodSampler(MCMCSampler):
     """
     MCMC sampler for Bayesian variable selection for a linear model with a Normal likelihood.
     The likelihood variance is controlled by a Inverse Gamma prior.
+    This class supports continuous-valued responses.
 
     Usage of this class is only recommended for advanced users. For most users it should
-    suffice to use `NormalLikelihoodVariableSelector`.
+    suffice to use :class:`NormalLikelihoodVariableSelector`.
 
     :param tensor X: A N x P `torch.Tensor` of covariates.
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.

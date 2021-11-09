@@ -24,6 +24,7 @@ class NormalLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a linear model with a Normal likelihood.
     The likelihood variance is controlled by a Inverse Gamma prior.
+    This class is appropriate for continuous-valued responses.
 
     Usage::
 
@@ -158,6 +159,7 @@ class NormalLikelihoodVariableSelector(object):
 class BinomialLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a generalized linear model with a Binomial likelihood.
+    This class is appropriate for count-valued responses that are bounded.
 
     Usage::
 
@@ -282,6 +284,7 @@ class BinomialLikelihoodVariableSelector(object):
 class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     """
     Bayesian variable selection for a generalized linear model with a Bernoulli likelihood.
+    This class is appropriate for binary-valued responses.
 
     Usage::
 
@@ -317,6 +320,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
 class NegativeBinomialLikelihoodVariableSelector(object):
     """
     Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood.
+    This class is appropriate for count-valued responses that are unbounded.
 
     Usage::
 
@@ -341,7 +345,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
         Defaults to 0.25. For expert users only.
     :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`.
-        Defaults to 5.0. Defaults to 0.25. For expert users only.
+        Defaults to 5.0. For expert users only.
     """
     def __init__(self, dataframe, response_column, psi0_column,
                  S=5, tau=0.01, tau_intercept=1.0e-4,

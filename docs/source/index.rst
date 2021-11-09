@@ -15,6 +15,7 @@ millipede documentation
    :caption: API
 
    selection 
+   samplers 
 
 
 Indices and tables
