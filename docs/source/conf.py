@@ -1,9 +1,5 @@
-import glob
 import os
-import shutil
-import sys
 
-import nbsphinx
 import sphinx_rtd_theme
 
 # import pkg_resources
@@ -22,7 +18,6 @@ import sphinx_rtd_theme
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-#sys.path.insert(0, os.path.abspath("../.."))
 
 
 os.environ["SPHINX_BUILD"] = "1"
@@ -63,7 +58,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
-    #"sphinx_gallery.gen_gallery",
     "sphinx_search.extension",
 ]
 

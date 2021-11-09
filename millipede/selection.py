@@ -35,7 +35,8 @@ class NormalLikelihoodVariableSelector(object):
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
     :param float S: The number of covariates to include in the model a priori. Defaults to 5.
-    :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'. Defaults to 'isotropic'.
+    :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
+        Defaults to 'isotropic'.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param float c: Controls the precision of the coefficients in the gprior. Defaults to 100.0.
@@ -165,7 +166,8 @@ class BinomialLikelihoodVariableSelector(object):
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
-    :param str total_count_column: The name of the column in `dataframe` that contains the total count for each data point.
+    :param str total_count_column: The name of the column in `dataframe` that contains the total count
+        for each data point.
     :param float S: The number of covariates to include in the model a priori. Defaults to 5.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
@@ -330,14 +332,14 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
         floating point precision. Defaults to 'double'.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
-    :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for `nu` updates. Defaults to 0.05.
-        For expert users only.
+    :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for `nu` updates.
+        Defaults to 0.05. For expert users only.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
     :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
         Defaults to 0.25. For expert users only.
-    :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`. Defaults to 5.0.
-        Defaults to 0.25. For expert users only.
+    :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`.
+        Defaults to 5.0. Defaults to 0.25. For expert users only.
     """
     def __init__(self, dataframe, response_column, psi0_column,
                  S=5, tau=0.01, tau_intercept=1.0e-4,
