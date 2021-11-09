@@ -37,6 +37,8 @@ class NormalLikelihoodVariableSelector(object):
     :param float S: The number of covariates to include in the model a priori. Defaults to 5.
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
+    :param bool include_intercept: Whether to include an intercept term. If included the intercept term is
+       is included in all models so that the corresponding coefficient does not have a PIP.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param float c: Controls the precision of the coefficients in the gprior. Defaults to 100.0.

@@ -5,6 +5,10 @@ import torch
 
 
 def safe_cholesky(A, epsilon=1.0e-8):
+    """
+    Equivalent of torch.linalg.cholesky that progressively adds
+    diagonal jitter to avoid cholesky errors.
+    """
     try:
         return torch.linalg.cholesky(A)
     except RuntimeError as e:

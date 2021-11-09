@@ -18,10 +18,31 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     Usage of this class is only recommended for advanced users. For most users it should
     suffice to use `NormalLikelihoodVariableSelector`.
+
+    :param tensor X: A N x P `torch.Tensor` of covariates.
+    :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
+    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
+        Defaults to 'isotropic'.
+    :param bool include_intercept: Whether to include an intercept term. If included the intercept term is
+       is included in all models so that the corresponding coefficient does not have a PIP.
+    :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
+    :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
+    :param float c: Controls the precision of the coefficients in the gprior. Defaults to 100.0.
+    :param float nu0: Controls the prior over the precision in the Normal likelihood. Defaults to 0.0.
+    :param float lambda0: Controls the prior over the precision in the Normal likelihood. Defaults to 0.0.
+    :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
+    :param bool precompute_XX: Whether the matrix X^t @ X should be pre-computed. Defaults to False. Note
+        that setting this to True may result in out-of-memory errors for sufficiently large covariate matrices.
+    :param bool verbose_constructor: Whether the class constructor should print some information to
+        stdout upon initialization.
     """
-    def __init__(self, X, Y, S=5, c=100.0, explore=5, precompute_XX=False,
-                 prior="isotropic", tau=0.01, tau_intercept=1.0e-4, compute_betas=False,
-                 nu0=0.0, lambda0=0.0, include_intercept=True, verbose_constructor=True):
+    def __init__(self, X, Y, S=5,
+                 prior="isotropic", include_intercept=True,
+                 tau=0.01, tau_intercept=1.0e-4, c=100.0,
+                 nu0=0.0, lambda0=0.0,
+                 explore=5, precompute_XX=False,
+                 compute_betas=False, verbose_constructor=True):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape

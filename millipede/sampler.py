@@ -1,7 +1,7 @@
 class MCMCSampler(object):
-    def __init__(self):
-        pass
-
+    """
+    Base class for all MCMC samplers.
+    """
     def initialize_sample(self, seed=None):
         raise NotImplementedError
 
