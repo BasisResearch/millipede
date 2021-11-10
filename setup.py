@@ -34,7 +34,6 @@ setup(
     ],
     extras_require={
         "test": [
-            "black",
             "isort>=5.0",
             "flake8",
             "pytest>=5.0",
