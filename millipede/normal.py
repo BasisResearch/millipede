@@ -17,6 +17,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     The likelihood variance is controlled by a Inverse Gamma prior.
     This class supports continuous-valued responses.
 
+    The details of the available models in `NormalLikelihoodSampler` are as follows.
     The covariates :math:`X` and responses :math:`Y` are defined as follows:
 
     .. math::
@@ -44,7 +45,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         &\beta_\gamma \sim \rm{Normal}(0, \sigma^2 \tau^{-1} \mathbb{1}_\gamma)
 
-        &Y_n \sim \rm{Normal}(X_{n, \gamma} \cdot \beta_\gamma, \sigma^2)
+        &Y_n \sim \rm{Normal}(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma, \sigma^2)
 
     Note that the dimension of :math:`\beta_\gamma` depends on the number of covariates
     included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).

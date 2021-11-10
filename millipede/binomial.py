@@ -16,23 +16,78 @@ from .util import leave_one_out, safe_cholesky
 
 
 class CountLikelihoodSampler(MCMCSampler):
-    """
+    r"""
     MCMC algorithm for Bayesian variable selection for a generalized linear model with a Binomial or
-    Negative Binomial likelihood. This class supports count-valued responses.
+    Negative Binomial likelihood (note that a Bernoulli likelihood is a special case of a Binomial likelihood).
+    This class supports count-valued responses.
 
     To define a Binomial model specify `TC` but not `psi0`.
     To define a Negative Binomial model specify `psi0` but not `TC`.
+
+    The details of the available models in :class:`CountlLikelihoodSampler` are as follows.
+    For both likelihoods the covariates and responses are defined as:
+
+    .. math::
+
+        X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{Z}_{\ge 0}^{N}
+
+    The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
+    In particular :math:`\gamma_p = 0` corresponds to exclusion and :math:`\gamma_p = 1` corresponds to inclusion.
+    The prior probability of inclusion is governed by :math:`h` or alternatively :math:`S`:
+
+    .. math::
+
+        h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
+
+    Putting this together, the model specification for the Binomial case is as follows:
+
+    .. math::
+
+        &\gamma_p \sim \rm{Bernoulli}(h) \qquad \rm{for} \qquad p=1,2,...,P
+
+        &\beta_0 \sim \rm{Normal}(0, \tau_\rm{intercept}^{-1})
+
+        &\beta_\gamma \sim \rm{Normal}(0, \tau^{-1} \mathbb{1}_\gamma)
+
+        &Y_n \sim \rm{Binomial}(T_n, \sigma(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma))
+
+    where :math:`\sigma(\cdot)` is the logistic or sigmoid function and :math:`T_n` denotes the
+    :math:`N`-dimensional vector of total counts. That is each Binomial likelihood is equivalent
+    to :math:`T_n` corresponding Bernoulli likelihoods.
+
+    The Negative Binomial case is similar but includes a latent variable :math:`\nu > 0`
+    that governs the dispersion of the Negative Binomial distribution:
+
+    .. math::
+
+        &\log \nu \sim \rm{ImproperPrior}(-\infty, \infty)
+
+        &Y_n \sim \rm{NegBinomial}(\rm{mean}=\rm{exp}(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma + \psi_{0, n}), \nu)
+
+    The vector :math:`\psi_0 \in \mathbb{R}^N` allows the user to supply a sample-specific offset.
+    We note that we use a parameterization of the Negative Binomial distribution where the variance is given by
+
+    .. math::
+
+        \rm{variance} = \rm{mean} + \rm{mean}^2 / \nu
+
+    thus small values of :math:`\nu` correspond to large dispersion/variance and :math:`\nu \to \infty` recovers
+    the Poisson distribution.
+
+    Note that above the dimension of :math:`\beta_\gamma` depends on the number of covariates
+    included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).
 
     Usage of this class is only recommended for advanced users. For most users it should
     suffice to use one of :class:`BinomialLikelihoodVariableSelector`, :class:`BernoulliLikelihoodVariableSelector`,
     and :class:`NegativeBinomialLikelihoodVariableSelector`.
 
     :param tensor X: A N x P `torch.Tensor` of covariates. This is a required argument.
-    :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses. This is a required argument.
-    :param tensor TC: A N-dimensional `torch.Tensor` of non-negative arguments. This is a required argument if
+    :param tensor Y: A N-dimensional `torch.Tensor` of non-negative count-valued responses. This is a required argument.
+    :param tensor TC: A N-dimensional `torch.Tensor` of non-negative counts. This is a required argument if
         you wish to specify a Binomial model. Defaults to None.
     :param tensor psi0: A N-dimensional `torch.Tensor` of offsets `psi0`. This is a required argument if
-        you wish to specify a Negative Binomial model. Defaults to None.
+        you wish to specify a Negative Binomial model. If the user specifies a float, `psi0` will be expanded
+        to a N-dimensional vector internally. Defaults to None.
     :param float S: The number of covariates to include in the model a priori. Defaults to 5.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
