@@ -5,8 +5,6 @@ For most users it suffices to use the predefined Bayesian variable selection cla
 like :class:`millipede.NormalLikelihoodVariableSelector`.
 However advanced users also have the option of using the MCMC samplers directly.
 
-.. automodule:: millipede
-
 NormalLikelihoodSampler
 -----------------------
 .. autofunction:: millipede.normal.NormalLikelihoodSampler

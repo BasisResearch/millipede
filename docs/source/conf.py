@@ -1,6 +1,6 @@
 import os
 import sys
-
+import mock
 import sphinx_rtd_theme
 
 # import pkg_resources
@@ -73,6 +73,10 @@ autodoc_inherit_docstrings = True
 #     'undoc-members': True,
 #     'exclude-members': '__dict__,__module__,__weakref__',
 # }
+
+MOCK_MODULES = ['numpy', 'pandas', 'torch', 'scipy']
+for mod_name in MOCK_MODULES:
+   sys.modules[mod_name] = mock.Mock()
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
