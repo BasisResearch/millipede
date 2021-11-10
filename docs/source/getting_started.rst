@@ -11,7 +11,7 @@ What is Bayesian variable selection?
 ------------------------------------
 
 Bayesian variable selection is a model-based approach for identifying parsimonious explanations of observed data.
-In the context of generalized linear models with :math:`P` covariates :math:`{X_1, ..., X_P}` and responses :math:`Y`,
+In the context of generalized linear models with :math:`P` covariates :math:`\{ X_1, ..., X_P \}` and responses :math:`Y`,
 Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than :math:`P`)
 that are sufficient for explaining the observed responses.
 
@@ -104,12 +104,12 @@ Scalability
 -----------
 
 Roughly speaking, the cost of the MCMC algorithms implemented in millipede is proportional
-to `N x P`, where `N` is the total number of data points and `P` is the total number of covariates.
+to :math:`N \times P`, where :math:`N` is the total number of data points and :math:`P` is the total number of covariates.
 For an **approximate** guide to hardware requirements please consult the following guidelines:
 
-* If `N x P < 10^7` use a CPU
-* If `10^7 < N x P < 10^9` use a GPU
-* If `10^9 < N x P` you may be out of luck
+* If :math:`N \times P \lesssim 10^7` use a CPU
+* If :math:`10^7 \lesssim N \times P \lesssim 10^9` use a GPU
+* If :math:`10^9 \lesssim N \times P` you may be out of luck
 
 
 Contact information
