@@ -32,12 +32,16 @@ class NormalLikelihoodVariableSelector(object):
         selector.run(T=2000, T_burnin=1000)
         print(selector.summary)
 
-    The details of the model used in `NormalLikelihoodVariableSelector` are as follows.
+    The details of the model used in :class:`NormalLikelihoodVariableSelector` are as follows.
     The covariates :math:`X` and responses :math:`Y` are defined as follows:
 
     .. math::
 
         X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{R}^{N}
+
+    and are provided by the user. The user should put some thought into whether :math:`X`
+    should be centered and/or normalized. This is generally a good idea for the responses
+    :math:`Y`, but whether pre-processing for :math:`X` is advisable depends on the nature of the dataset.
 
     The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
     In particular :math:`\gamma_p = 0` corresponds to exclusion and :math:`\gamma_p = 1` corresponds to inclusion.
@@ -68,7 +72,8 @@ class NormalLikelihoodVariableSelector(object):
     :math:`\sigma^2`. The default choice :math:`\nu_0=\lambda_0=0` corresponds to an
     improper prior :math:`p(\sigma^2) \propto 1/\sigma^2`.
 
-    For a gprior the prior over the coefficients is instead specified as follows:
+    For a gprior the prior over the coefficients (including the intercept :math:`\beta_0` if it is included)
+    is instead specified as follows:
 
     .. math::
 
@@ -79,7 +84,7 @@ class NormalLikelihoodVariableSelector(object):
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
-    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
     :param bool include_intercept: Whether to include an intercept term. If included the intercept term is
@@ -87,15 +92,17 @@ class NormalLikelihoodVariableSelector(object):
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param float c: Controls the precision of the coefficients in the gprior. Defaults to 100.0.
-    :param float nu0: Controls the prior over the precision in the Normal likelihood. Defaults to 0.0.
-    :param float lambda0: Controls the prior over the precision in the Normal likelihood. Defaults to 0.0.
+    :param float nu0: Controls the prior over the variance in the Normal likelihood. Defaults to 0.0.
+    :param float lambda0: Controls the prior over the variance in the Normal likelihood. Defaults to 0.0.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
         floating point precision. Defaults to 'double'.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
-    :param bool precompute_XX: Whether the matrix X^t @ X should be pre-computed. Defaults to False. Note
-        that setting this to True may result in out-of-memory errors for sufficiently large covariate matrices.
+    :param bool precompute_XX: Whether the covariance matrix :math:`X^{\rm T} X \in \mathbb{R}^{P \times P}`
+        should be pre-computed. Defaults to False. Note that setting this to True may result in out-of-memory errors
+        for sufficiently large covariate matrices :math:`X`.
+        However, if sufficient memory is available, setting precompute_XX to True should be faster.
     """
     def __init__(self, dataframe, response_column,
                  S=5, prior="isotropic",
@@ -201,7 +208,7 @@ class NormalLikelihoodVariableSelector(object):
 
 
 class BinomialLikelihoodVariableSelector(object):
-    """
+    r"""
     Bayesian variable selection for a generalized linear model with a Binomial likelihood.
     This class is appropriate for count-valued responses that are bounded.
 
@@ -211,12 +218,50 @@ class BinomialLikelihoodVariableSelector(object):
         selector.run(T=2000, T_burnin=1000)
         print(selector.summary)
 
+    The details of the model used in :class:`BinomialLikelihoodVariableSelector` are as follows.
+    The covariates :math:`X`, responses :math:`Y`, and total counts :math:`T` are defined as:
+
+    .. math::
+
+        X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{Z}_{\ge 0}^{N}
+        \qquad \qquad T \in \mathbb{Z}_{\ge 1}^{N}
+
+    and are provided by the user. The user should put some thought into whether :math:`X`
+    should be centered and/or normalized.
+
+    The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
+    In particular :math:`\gamma_p = 0` corresponds to exclusion and :math:`\gamma_p = 1` corresponds to inclusion.
+    The prior probability of inclusion is governed by :math:`h` or alternatively :math:`S`:
+
+    .. math::
+
+        h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
+
+    The rest of the model is specified as:
+
+    .. math::
+
+        &\gamma_p \sim \rm{Bernoulli}(h) \qquad \rm{for} \qquad p=1,2,...,P
+
+        &\beta_0 \sim \rm{Normal}(0, \tau_\rm{intercept}^{-1})
+
+        &\beta_\gamma \sim \rm{Normal}(0, \tau^{-1} \mathbb{1}_\gamma)
+
+        &Y_n \sim \rm{Binomial}(T_n, \sigma(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma))
+
+    where :math:`\sigma(\cdot)` is the logistic or sigmoid function and :math:`T_n` denotes the
+    :math:`N`-dimensional vector of total counts. That is each Binomial likelihood is equivalent
+    to :math:`T_n` corresponding Bernoulli likelihoods.
+    Note that the dimension of :math:`\beta_\gamma` depends on the number of covariates
+    included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).
+    The intercept :math:`\beta_0` is always included in the model.
+
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
         for each data point.
-    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -326,7 +371,7 @@ class BinomialLikelihoodVariableSelector(object):
 
 
 class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
-    """
+    r"""
     Bayesian variable selection for a generalized linear model with a Bernoulli likelihood.
     This class is appropriate for binary-valued responses.
 
@@ -336,10 +381,45 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
         selector.run(T=2000, T_burnin=1000)
         print(selector.summary)
 
+    The details of the model used in :class:`BernoulliLikelihoodVariableSelector` are as follows.
+    The covariates :math:`X` and responses :math:`Y` are defined as follows:
+
+    .. math::
+
+        X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \{0, 1\}^{N}
+
+    and are provided by the user. The user should put some thought into whether :math:`X`
+    should be centered and/or normalized.
+
+    The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
+    In particular :math:`\gamma_p = 0` corresponds to exclusion and :math:`\gamma_p = 1` corresponds to inclusion.
+    The prior probability of inclusion is governed by :math:`h` or alternatively :math:`S`:
+
+    .. math::
+
+        h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
+
+    The rest of the model is specified as:
+
+    .. math::
+
+        &\gamma_p \sim \rm{Bernoulli}(h) \qquad \rm{for} \qquad p=1,2,...,P
+
+        &\beta_0 \sim \rm{Normal}(0, \tau_\rm{intercept}^{-1})
+
+        &\beta_\gamma \sim \rm{Normal}(0, \tau^{-1} \mathbb{1}_\gamma)
+
+        &Y_n \sim \rm{Bernoulli}(\sigma(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma))
+
+    where :math:`\sigma(\cdot)` is the logistic or sigmoid function.
+    Note that the dimension of :math:`\beta_\gamma` depends on the number of covariates
+    included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).
+    The intercept :math:`\beta_0` is always included in the model.
+
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
-    :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
-    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param str response_column: The name of the column in `dataframe` that contains the binary-valued responses.
+    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -362,7 +442,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
 
 
 class NegativeBinomialLikelihoodVariableSelector(object):
-    """
+    r"""
     Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood.
     This class is appropriate for count-valued responses that are unbounded.
 
@@ -372,17 +452,67 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         selector.run(T=2000, T_burnin=1000)
         print(selector.summary)
 
+    The details of the model used in :class:`NegativeBinomialLikelihoodVariableSelector` are as follows.
+    The covariates :math:`X`, responses :math:`Y`, and offsets :math:`\psi_0` are defined as follows
+
+    .. math::
+
+        X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{Z}_{\ge 0}^{N}
+        \qquad \qquad \psi_0 \in \mathbb{R}^{N}
+
+    and are provided by the user. The user should put some thought into whether :math:`X`
+    should be centered and/or normalized.
+
+    The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
+    In particular :math:`\gamma_p = 0` corresponds to exclusion and :math:`\gamma_p = 1` corresponds to inclusion.
+    The prior probability of inclusion is governed by :math:`h` or alternatively :math:`S`:
+
+    .. math::
+
+        h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
+
+    The full model specification for the Negative Binomial case is as follows:
+
+    .. math::
+
+        &\gamma_p \sim \rm{Bernoulli}(h) \qquad \rm{for} \qquad p=1,2,...,P
+
+        &\beta_0 \sim \rm{Normal}(0, \tau_\rm{intercept}^{-1})
+
+        &\beta_\gamma \sim \rm{Normal}(0, \tau^{-1} \mathbb{1}_\gamma)
+
+        &\log \nu \sim \rm{ImproperPrior}(-\infty, \infty)
+
+        &Y_n \sim \rm{NegBinomial}(\rm{mean}=\rm{exp}(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma + \psi_{0, n}), \nu)
+
+    Here :math:`\nu` governs the dispersion or variance of the Negative Binomial likelihood.
+    The vector :math:`\psi_0 \in \mathbb{R}^N` allows the user to supply a sample-specific offset.
+    In many cases setting :math:`\psi_{0, n} = 0` is a reasonable choice.
+    We note that we use a parameterization of the Negative Binomial distribution where the variance is given by
+
+    .. math::
+
+        \rm{variance} = \rm{mean} + \rm{mean}^2 / \nu
+
+    so that small values of :math:`\nu` correspond to large dispersion/variance and :math:`\nu \to \infty` recovers
+    the Poisson distribution.
+
+    Note that above the dimension of :math:`\beta_\gamma` depends on the number of covariates
+    included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).
+    The intercept :math:`\beta_0` is always included in the model.
+
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
-    :param str psi0_column: The name of the column in `dataframe` that contains the psi0 offset for each data point.
-    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param str psi0_column: The name of the column in `dataframe` that contains the offset
+        :math:`\psi_{0, n}` for each data point.
+    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
         floating point precision. Defaults to 'double'.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
-    :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for `nu` updates.
+    :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for :math:`\log \nu` updates.
         Defaults to 0.05. For expert users only.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
