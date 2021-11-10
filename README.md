@@ -11,6 +11,9 @@
                      /\/\/\/\/\/\/\/\/\/\ `---
 ```
 
+millipede is a PyTorch-based library for Bayesian variable selection that can be run on both CPU and GPU and
+can handle datasets with numbers of data points and covariates in the tens of thousands or more.
+ 
 ## What is Bayesian variable selection?
 
 Bayesian variable selection is a model-based approach for identifying parsimonious explanations of observed data.

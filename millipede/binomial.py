@@ -71,7 +71,7 @@ class CountLikelihoodSampler(MCMCSampler):
 
         \rm{variance} = \rm{mean} + \rm{mean}^2 / \nu
 
-    thus small values of :math:`\nu` correspond to large dispersion/variance and :math:`\nu \to \infty` recovers
+    so that small values of :math:`\nu` correspond to large dispersion/variance and :math:`\nu \to \infty` recovers
     the Poisson distribution.
 
     Note that above the dimension of :math:`\beta_\gamma` depends on the number of covariates
