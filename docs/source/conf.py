@@ -20,6 +20,12 @@ import sphinx_rtd_theme
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath("../.."))
 
+current_dir = os.path.dirname(__file__)
+target_dir = os.path.abspath(os.path.join(current_dir, "../../"))
+sys.path.insert(0, target_dir)
+
+print("\ntarget_dir", target_dir)
+
 
 os.environ["SPHINX_BUILD"] = "1"
 
