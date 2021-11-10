@@ -39,8 +39,8 @@ class NormalLikelihoodVariableSelector(object):
 
         X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{R}^{N}
 
-    and are provided by the user. The user should put some thought into whether :math:`X`
-    should be centered and/or normalized. This is generally a good idea for the responses
+    and are provided by the user. The user should put some thought into whether the covariates :math:`X`
+    and respones :math:`Y` should be centered and/or normalized. This is generally a good idea for the responses
     :math:`Y`, but whether pre-processing for :math:`X` is advisable depends on the nature of the dataset.
 
     The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
