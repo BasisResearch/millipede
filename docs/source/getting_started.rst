@@ -17,7 +17,7 @@ that are sufficient for explaining the observed responses.
 
 In more detail, Bayesian variable selection is formulated as a model selection problem in which we consider
 the space of :math:`2^P` models in which some covariates are included and the rest are excluded.
-For example, one particular model might be :math:`Y = \beta_3 X_3 + \beta_9 X_9`.
+For example, one particular model might be :math:`Y = \beta_3 X_3 + \beta_9 X_9` for coefficients :math:`\beta_3` and :math:`\beta_9`.
 A priori we assume that models with fewer included covariates are more likely than those with more included covariates.
 The set of parsimonious models best supported by the data then emerges from the posterior distribution over the space of models.
 
