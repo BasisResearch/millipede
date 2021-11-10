@@ -17,7 +17,8 @@ can handle datasets with numbers of data points and covariates in the tens of th
 ## What is Bayesian variable selection?
 
 Bayesian variable selection is a model-based approach for identifying parsimonious explanations of observed data.
-In the context of generalized linear models with :math:`P` covariates :math:`{X_1, ..., X_P}` and responses :math:`Y`, 
+In the context of generalized linear models with
+<img src="https://render.githubusercontent.com/render/math?math=P"> covariates :math:`{X_1, ..., X_P}` and responses :math:`Y`, 
 Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than :math:`P`) 
 that are sufficient for explaining the observed responses.
 
