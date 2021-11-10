@@ -18,9 +18,7 @@ millipede documentation
    samplers 
 
 
-Indices and tables
-==================
+Index
+=====
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
