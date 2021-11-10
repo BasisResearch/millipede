@@ -17,31 +17,31 @@ can handle datasets with numbers of data points and covariates in the tens of th
 ## What is Bayesian variable selection?
 
 Bayesian variable selection is a model-based approach for identifying parsimonious explanations of observed data.
-In the context of generalized linear models with `P` covariates `{X_1, ..., X_P}` and responses `Y`, 
-Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than `P`) 
+In the context of generalized linear models with :math:`P` covariates :math:`{X_1, ..., X_P}` and responses :math:`Y`, 
+Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than :math:`P`) 
 that are sufficient for explaining the observed responses.
 
 In more detail, Bayesian variable selection is formulated as a model selection problem in which we consider 
-the space of `2^P` models in which some covariates are included and the rest are excluded.
-For example, one particular model might be `Y = b_3 X_3 + b_9 X_9`.
+the space of :math:`2^P` models in which some covariates are included and the rest are excluded.
+For example, one particular model might be :math:`Y = \beta_3 X_3 + \beta_9 X_9`.
 A priori we assume that models with fewer included covariates are more likely than those with more included covariates.
 The set of parsimonious models best supported by the data then emerges from the posterior distribution over the space of models.
 
 What's especially appealing about Bayesian variable selection is that it provides an interpretable score
-called the PIP (posterior inclusion probability) for each covariate `X_p`. 
-The PIP is a true probability and so it satisfies `0 <= PIP <= 1` by definition.
-Covariates with large PIPs are good candidates for being explanatory of the response `Y`.
+called the PIP (posterior inclusion probability) for each covariate :math:`X_p`. 
+The PIP is a true probability and so it satisfies :math:`0 \le \rm{PIP} \le 1` by definition.
+Covariates with large PIPs are good candidates for being explanatory of the response :math:`Y`.
 
-Being able to compute PIPs is particularly useful for high-dimensional datasets with large `P`.
+Being able to compute PIPs is particularly useful for high-dimensional datasets with large :math:`P`.
 For example, we might want to select a small number of covariates to include in a predictive model (i.e. feature selection). 
-Alternatively, in settings where it is implausible to subject all `P` covariates to 
+Alternatively, in settings where it is implausible to subject all :math:`P` covariates to 
 some expensive downstream analysis (e.g. a laboratory experiment),
 Bayesian variable selection can be used to select a small number of covariates for further analysis. 
   
 
 ## Requirements
 
-millipede requires Python 3.8 and the following Python packages: [PyTorch](https://pytorch.org/), [pandas](https://pandas.pydata.org/), and [polyagamma](https://github.com/zoj613/polyagamma). 
+millipede requires Python 3.8 or later and the following Python packages: [PyTorch](https://pytorch.org/), [pandas](https://pandas.pydata.org/), and [polyagamma](https://github.com/zoj613/polyagamma). 
 
 Note that if you wish to run millipede on a GPU you need to install PyTorch with CUDA support. 
 In particular if you run the following command from your terminal it should report True:
@@ -85,8 +85,8 @@ See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/m
 
 ## Supported data types 
 
-The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
-Currently the response `Y` can be any of the following:
+The covariates :math:`X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
+Currently the response :math:`Y` can be any of the following:
 - continuous-valued &nbsp;&nbsp; => &nbsp;&nbsp; use `NormalLikelihoodVariableSelector`
 - binary-valued &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use `BernoulliLikelihoodVariableSelector`
 - bounded counts  &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use `BinomialLikelihoodVariableSelector`
@@ -96,14 +96,14 @@ Currently the response `Y` can be any of the following:
 ## Scalability
 
 Roughly speaking, the cost of the MCMC algorithms implemented in millipede is proportional
- to `N x P`, where `N` is the total number of data points and `P` is the total number of covariates. 
+ to :math:`N \times P`, where :math:`N` is the total number of data points and :math:`P` is the total number of covariates. 
 For an **approximate** guide to hardware requirements please consult the following table:
 
-| Regime                | Expectations           |
-| ----------------------|------------------------|
-| `N x P < 10^7`        | Use a CPU              |
-| `10^7 < N x P < 10^9` | Use a GPU              |
-| `10^9 < N x P`        | You may be out of luck |
+| Regime                                    | Expectations           |
+| ------------------------------------------|------------------------|
+| :math:`N x P \lesssim 10^7`               | Use a CPU              |
+| :math:`10^7 \lesssim N x P \lesssim 10^9` | Use a GPU              |
+| :math:`10^9 \lesssim N x P`               | You may be out of luck |
 
 
 ## Documentation

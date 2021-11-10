@@ -11,24 +11,24 @@ What is Bayesian variable selection?
 ------------------------------------
 
 Bayesian variable selection is a model-based approach for identifying parsimonious explanations of observed data.
-In the context of generalized linear models with `P` covariates `{X_1, ..., X_P}` and responses `Y`,
-Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than `P`)
+In the context of generalized linear models with :math:`P` covariates :math:`{X_1, ..., X_P}` and responses :math:`Y`,
+Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than :math:`P`)
 that are sufficient for explaining the observed responses.
 
-In more detail, Bayesian variable selection is formulated as a model selection problem in which we consider    
-the space of `2^P` models in which some covariates are included and the rest are excluded.
-For example, one particular model might be `Y = b_3 X_3 + b_9 X_9`.
+In more detail, Bayesian variable selection is formulated as a model selection problem in which we consider
+the space of :math:`2^P` models in which some covariates are included and the rest are excluded.
+For example, one particular model might be :math:`Y = \beta_3 X_3 + \beta_9 X_9`.
 A priori we assume that models with fewer included covariates are more likely than those with more included covariates.
 The set of parsimonious models best supported by the data then emerges from the posterior distribution over the space of models.
 
 What's especially appealing about Bayesian variable selection is that it provides an interpretable score
-called the PIP (posterior inclusion probability) for each covariate `X_p`.
-The PIP is a true probability and so it satisfies `0 <= PIP <= 1` by definition.
-Covariates with large PIPs are good candidates for being explanatory of the response `Y`.
+called the PIP (posterior inclusion probability) for each covariate :math:`X_p`.
+The PIP is a true probability and so it satisfies :math:`0 \le \rm{PIP} \le 1` by definition.
+Covariates with large PIPs are good candidates for being explanatory of the response :math:`Y`.
 
-Being able to compute PIPs is particularly useful for high-dimensional datasets with large `P`.
+Being able to compute PIPs is particularly useful for high-dimensional datasets with large :math:`P`.
 For example, we might want to select a small number of covariates to include in a predictive model (i.e. feature selection).
-Alternatively, in settings where it is implausible to subject all `P` covariates to
+Alternatively, in settings where it is implausible to subject all :math:`P` covariates to
 some expensive downstream analysis (e.g. a laboratory experiment),
 Bayesian variable selection can be used to select a small number of covariates for further analysis.
 
@@ -36,7 +36,7 @@ Bayesian variable selection can be used to select a small number of covariates f
 Requirements
 -------------
 
-millipede requires Python 3.8 and the following Python packages: 
+millipede requires Python 3.8 or later and the following Python packages: 
 `PyTorch <https://pytorch.org/>`__, 
 `pandas <https://pandas.pydata.org>`__, and
 `polyagamma <https://github.com/zoj613/polyagamma>`__. 
@@ -92,8 +92,8 @@ See the Jupyter notebooks in the `notebooks <https://github.com/broadinstitute/m
 Supported data types
 --------------------
 
-The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
-Currently the response `Y` can be any of the following:
+The covariates :math:`X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
+Currently the response :math:`Y` can be any of the following:
 
 * continuous-valued => use `NormalLikelihoodVariableSelector`
 * binary-valued => use `BernoulliLikelihoodVariableSelector`
