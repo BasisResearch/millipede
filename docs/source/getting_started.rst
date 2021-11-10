@@ -95,10 +95,10 @@ Supported data types
 The covariates :math:`X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
 Currently the response :math:`Y` can be any of the following:
 
-* continuous-valued => use `NormalLikelihoodVariableSelector`
-* binary-valued => use `BernoulliLikelihoodVariableSelector`
-* bounded counts => use `BinomialLikelihoodVariableSelector`
-* unbounded counts => use `NegativeBinomialLikelihoodVariableSelector`
+* continuous-valued => use `NormalLikelihoodVariableSelector <https://millipede.readthedocs.io/en/latest/selection.html#normallikelihoodvariableselector>`__
+* binary-valued => use `BernoulliLikelihoodVariableSelector <https://millipede.readthedocs.io/en/latest/selection.html#bernoullilikelihoodvariableselector>`__
+* bounded counts => use `BinomialLikelihoodVariableSelector <https://millipede.readthedocs.io/en/latest/selection.html#binomiallikelihoodvariableselector>`__
+* unbounded counts => use `NegativeBinomialLikelihoodVariableSelector <https://millipede.readthedocs.io/en/latest/selection.html#negativebinomiallikelihoodvariableselector>`__
 
 Scalability
 -----------
