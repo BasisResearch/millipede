@@ -88,10 +88,10 @@ See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/m
 The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
 Currently the response `Y` can be any of the following:
 
-- continuous-valued &nbsp;&nbsp; => &nbsp;&nbsp; use `NormalLikelihoodVariableSelector`
-- binary-valued &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use `BernoulliLikelihoodVariableSelector`
-- bounded counts  &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use `BinomialLikelihoodVariableSelector`
-- unbounded counts  &nbsp;&nbsp; => &nbsp;&nbsp; use `NegativeBinomialLikelihoodVariableSelector`
+- continuous-valued &nbsp;&nbsp; => &nbsp;&nbsp; use [NormalLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#millipede.selection.NormalLikelihoodVariableSelector)
+- binary-valued &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use [BernoulliLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#millipede.selection.BernoulliLikelihoodVariableSelector)
+- bounded counts  &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use [BinomialLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#binomiallikelihoodvariableselector)
+- unbounded counts  &nbsp;&nbsp; => &nbsp;&nbsp; use [NegativeBinomialLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#negativebinomiallikelihoodvariableselector)
 
 
 ## Scalability
