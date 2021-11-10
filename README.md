@@ -1,4 +1,6 @@
 [![Build Status](https://github.com/broadinstitute/millipede/workflows/CI/badge.svg)](https://github.com/broadinstitute/millipede/actions)
+[![Documentation Status](https://readthedocs.org/projects/millipede/badge/?version=latest)](https://millipede.readthedocs.io/en/latest/?badge=latest)
+      
 
 # millipede: A library for Bayesian variable selection
 ```
