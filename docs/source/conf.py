@@ -1,5 +1,6 @@
 import os
 import sys
+
 import mock
 import sphinx_rtd_theme
 
@@ -78,7 +79,7 @@ MOCK_MODULES = ['numpy', 'pandas', 'torch', 'polyagamma', 'torch.distributions',
                 'torch.linalg', 'torch.nn.functional']
 
 for mod_name in MOCK_MODULES:
-   sys.modules[mod_name] = mock.Mock()
+    sys.modules[mod_name] = mock.Mock()
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
