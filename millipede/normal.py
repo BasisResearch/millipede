@@ -21,7 +21,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     .. math::
 
-        X \in \mathbb{R}^{N \\times P} \qquad \qquad Y \in \mathbb{R}^{N}
+        X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{R}^{N}
 
     The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
     In particular :math:`\gamma_p = 0` corresponds to exclusion and :math:`\gamma_p = 1` corresponds to inclusion.
@@ -29,31 +29,31 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     .. math::
 
-        h \in [0, 1] \qquad \\rm{with} \qquad S \equiv hP
+        h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
 
     Putting this together, the model specification for an isotopric prior (with an intercept
-    :math:`\\beta_0` included) is as follows:
+    :math:`\beta_0` included) is as follows:
 
     .. math::
 
-        &\gamma_p \sim \\rm{Bernoulli}(h) \\qquad \\rm{for} \\qquad p=1,2,...,P
+        &\gamma_p \sim \rm{Bernoulli}(h) \qquad \rm{for} \qquad p=1,2,...,P
 
-        &\\sigma^2 \sim \\rm{InverseGamma}(\\nu_0 / 2, \\nu_0 \\lambda_0 / 2)
+        &\sigma^2 \sim \rm{InverseGamma}(\nu_0 / 2, \nu_0 \lambda_0 / 2)
 
-        &\\beta_0 \sim \\rm{Normal}(0, \\sigma^2\\tau_\\rm{intercept}^{-1})
+        &\beta_0 \sim \rm{Normal}(0, \sigma^2\tau_\rm{intercept}^{-1})
 
-        &\\beta_\gamma \sim \\rm{Normal}(0, \\sigma^2 \\tau^{-1} \\mathbb{1}_\\gamma)
+        &\beta_\gamma \sim \rm{Normal}(0, \sigma^2 \tau^{-1} \mathbb{1}_\gamma)
 
-        &Y_n \sim \\rm{Normal}(X_{n, \\gamma} \cdot \\beta_\gamma, \\sigma^2)
+        &Y_n \sim \rm{Normal}(X_{n, \gamma} \cdot \beta_\gamma, \sigma^2)
 
-    Note that the dimension of :math:`\\beta_\gamma` depends on the number of covariates
+    Note that the dimension of :math:`\beta_\gamma` depends on the number of covariates
     included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).
 
     For a gprior the prior over the coefficients is instead specified as follows:
 
     .. math::
 
-        \\beta_{\gamma} \sim \\rm{Normal}(0, c \\sigma^2 (X_\\gamma^{\\rm{T}} X_\\gamma)^{-1})
+        \beta_{\gamma} \sim \rm{Normal}(0, c \sigma^2 (X_\gamma^{\rm{T}} X_\gamma)^{-1})
 
     Usage of this class is only recommended for advanced users. For most users it should
     suffice to use :class:`NormalLikelihoodVariableSelector`.
