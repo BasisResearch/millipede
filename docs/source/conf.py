@@ -74,7 +74,7 @@ autodoc_inherit_docstrings = True
 #     'exclude-members': '__dict__,__module__,__weakref__',
 # }
 
-MOCK_MODULES = ['numpy', 'pandas', 'torch', 'scipy']
+MOCK_MODULES = ['numpy', 'pandas', 'torch', 'scipy', 'polyagamma']
 for mod_name in MOCK_MODULES:
    sys.modules[mod_name] = mock.Mock()
 
