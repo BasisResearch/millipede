@@ -102,6 +102,11 @@ For an **approximate** guide to hardware requirements please consult the followi
 | `10^9 < N x P`        | You may be out of luck |
 
 
+## Documentation
+
+Read the docs [here](https://millipede.readthedocs.io/en/latest/)
+
+
 ## Contact information
 
 Martin Jankowiak: mjankowi@broadinstitute.org
