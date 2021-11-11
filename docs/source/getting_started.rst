@@ -126,7 +126,7 @@ covariates are expected to require more iterations. Similarly, datasets with cou
 more iterations than those with continuous-valued responses (because the underlying inference problem is more difficult).
 The best way to determine if you need more MCMC iterations is to run millipede twice with different random number seeds.
 If the results for both runs are not similar, you probably want to increase the number of iterations.
-As a general rule of thumb, it's probably good to aim for at least `10^4-10^5` samples if doing so is feasible.
+As a general rule of thumb, it's probably good to aim for at least :math:`10^4-10^5` samples if doing so is feasible.
 Also, you probably want at least 1000 burn-in iterations.
 
 

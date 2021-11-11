@@ -87,6 +87,8 @@ class NormalLikelihoodVariableSelector(object):
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
     :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
+        Note that the mean number of covariates in the posterior can vary significantly from S, since
+        the posterior is in effect a compromise between the prior and the observed data.
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
     :param bool include_intercept: Whether to include an intercept term. If included the intercept term is
@@ -290,6 +292,8 @@ class BinomialLikelihoodVariableSelector(object):
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
         for each data point.
     :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
+        Note that the mean number of covariates in the posterior can vary significantly from S, since
+        the posterior is in effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -473,6 +477,8 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the binary-valued responses.
     :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
+        Note that the mean number of covariates in the posterior can vary significantly from S, since
+        the posterior is in effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -583,6 +589,8 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     :param str psi0_column: The name of the column in `dataframe` that contains the offset
         :math:`\psi_{0, n}` for each data point.
     :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
+        Note that the mean number of covariates in the posterior can vary significantly from S, since
+        the posterior is in effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
