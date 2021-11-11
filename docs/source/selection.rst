@@ -6,17 +6,20 @@ one of the four Bayesian variable selection methods listed below.
 
 NormalLikelihoodVariableSelector
 --------------------------------
-.. autofunction:: millipede.selection.NormalLikelihoodVariableSelector 
+.. autoclass:: millipede.selection.NormalLikelihoodVariableSelector 
+    :members:
 
 BernoulliLikelihoodVariableSelector
 -----------------------------------
-.. autofunction:: millipede.selection.BernoulliLikelihoodVariableSelector 
+.. autoclass:: millipede.selection.BernoulliLikelihoodVariableSelector 
+    :members:
 
 BinomialLikelihoodVariableSelector
 ----------------------------------
-.. autofunction:: millipede.selection.BinomialLikelihoodVariableSelector 
+.. autoclass:: millipede.selection.BinomialLikelihoodVariableSelector 
+    :members:
 
 NegativeBinomialLikelihoodVariableSelector
 ------------------------------------------
-.. autofunction:: millipede.selection.NegativeBinomialLikelihoodVariableSelector 
-
+.. autoclass:: millipede.selection.NegativeBinomialLikelihoodVariableSelector 
+    :members:

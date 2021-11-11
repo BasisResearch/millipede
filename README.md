@@ -116,6 +116,19 @@ For an **approximate** guide to hardware requirements please consult the followi
 Read the docs [here](https://millipede.readthedocs.io/en/latest/)
 
 
+## FAQ
+
+- How many MCMC iterations do I need for good results?
+
+It's hard to say. Generally speaking, difficult regimes with highly-correlated covariates or a large number of
+covariates are expected to require more iterations. Similarly, datasets with count-based responses are expected to require
+more iterations than those with continuous-valued responses (because the underlying inference problem is more difficult).
+The best way to determine if you need more MCMC iterations is to run millipede twice with different random number seeds.
+If the results for both runs are not similar, you probably want to increase the number of iterations.
+As a general rule of thumb, it's probably good to aim for at least `10^4-10^5` samples if doing so is feasible. 
+Also, you probably want at least 1000 burn-in iterations.
+
+
 ## Contact information
 
 Martin Jankowiak: mjankowi@broadinstitute.org

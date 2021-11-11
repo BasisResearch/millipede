@@ -144,7 +144,7 @@ class NormalLikelihoodVariableSelector(object):
                                                verbose_constructor=False)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
-        """
+        r"""
         Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
         of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
         if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
@@ -337,7 +337,7 @@ class BinomialLikelihoodVariableSelector(object):
                                               verbose_constructor=False)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
-        """
+        r"""
         Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
         of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
         if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
@@ -493,6 +493,28 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
                          tau=tau, tau_intercept=tau_intercept, precision=precision,
                          device=device, xi_target=xi_target)
 
+    def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
+        r"""
+        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
+        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
+        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+
+        :param int T: Positive integer that controls the number of MCMC samples that are
+            generated (i.e. after burn-in/adapation). Defaults to 2000.
+        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
+            generated during burn-in/adapation. Defaults to 1000.
+        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
+            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
+            Defaults to 'bar'.
+        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
+            argument is `stdout`. Defaults to 200.
+        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
+            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
+            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
+        """
+        super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
+                    streaming=streaming, seed=seed)
+
 
 class NegativeBinomialLikelihoodVariableSelector(object):
     r"""
@@ -614,7 +636,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
                                               verbose_constructor=False)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
-        """
+        r"""
         Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
         of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
         if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
