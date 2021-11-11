@@ -31,6 +31,7 @@ setup(
         "torch>=1.9",
         "pandas",
         "polyagamma==1.3.2",
+        "tqdm",
     ],
     extras_require={
         "test": [

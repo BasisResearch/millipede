@@ -4,6 +4,7 @@ import time
 import numpy as np
 import pandas as pd
 import torch
+from tqdm.contrib import tenumerate
 
 from millipede import CountLikelihoodSampler, NormalLikelihoodSampler
 
@@ -142,7 +143,25 @@ class NormalLikelihoodVariableSelector(object):
                                                include_intercept=include_intercept,
                                                verbose_constructor=False)
 
-    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
+    def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
+        """
+        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
+        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
+        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+
+        :param int T: Positive integer that controls the number of MCMC samples that are
+            generated (i.e. after burn-in/adapation). Defaults to 2000.
+        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
+            generated during burn-in/adapation. Defaults to 1000.
+        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
+            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
+            Defaults to 'bar'.
+        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
+            argument is `stdout`. Defaults to 200.
+        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
+            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
+            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
+        """
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
         if not isinstance(T_burnin, int) and T_burnin > 0:
@@ -156,11 +175,17 @@ class NormalLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
+        if verbosity == 'bar':
+            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
+                                           total=T + T_burnin)
+        else:
+            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
+
+        for t, (burned, sample) in enumerate_samples:
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
-            if verbose and (t % report_frequency == 0 or t == T + T_burnin - 1):
+            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
                 s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
@@ -203,7 +228,7 @@ class NormalLikelihoodVariableSelector(object):
         self.stats['Number of retained samples'] = T
         self.stats['Number of burn-in samples'] = T_burnin
 
-        if verbose:
+        if verbosity == 'stdout':
             for k, v in self.stats.items():
                 print('{}: '.format(k), v)
 
@@ -311,7 +336,25 @@ class BinomialLikelihoodVariableSelector(object):
                                               xi_target=xi_target,
                                               verbose_constructor=False)
 
-    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
+    def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
+        """
+        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
+        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
+        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+
+        :param int T: Positive integer that controls the number of MCMC samples that are
+            generated (i.e. after burn-in/adapation). Defaults to 2000.
+        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
+            generated during burn-in/adapation. Defaults to 1000.
+        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
+            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
+            Defaults to 'bar'.
+        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
+            argument is `stdout`. Defaults to 200.
+        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
+            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
+            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
+        """
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
         if not isinstance(T_burnin, int) and T_burnin > 0:
@@ -325,11 +368,17 @@ class BinomialLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
+        if verbosity == 'bar':
+            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
+                                           total=T + T_burnin)
+        else:
+            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
+
+        for t, (burned, sample) in enumerate_samples:
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
-            if verbose and (t % report_frequency == 0 or t == T + T_burnin - 1):
+            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
                 s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
@@ -368,7 +417,7 @@ class BinomialLikelihoodVariableSelector(object):
                      self.sampler.attempted_omega_updates)
         self.stats['Polya-Gamma MH stats'] = s
 
-        if verbose:
+        if verbosity == 'stdout':
             for k, v in self.stats.items():
                 print('{}: '.format(k), v)
 
@@ -564,7 +613,25 @@ class NegativeBinomialLikelihoodVariableSelector(object):
                                               xi_target=xi_target, init_nu=init_nu,
                                               verbose_constructor=False)
 
-    def run(self, T=1000, T_burnin=500, verbose=True, report_frequency=100, streaming=True, seed=None):
+    def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
+        """
+        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
+        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
+        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+
+        :param int T: Positive integer that controls the number of MCMC samples that are
+            generated (i.e. after burn-in/adapation). Defaults to 2000.
+        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
+            generated during burn-in/adapation. Defaults to 1000.
+        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
+            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
+            Defaults to 'bar'.
+        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
+            argument is `stdout`. Defaults to 200.
+        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
+            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
+            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
+        """
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
         if not isinstance(T_burnin, int) and T_burnin > 0:
@@ -578,11 +645,17 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         ts = [time.time()]
         digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
 
-        for t, (burned, sample) in enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
+        if verbosity == 'bar':
+            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
+                                           total=T + T_burnin)
+        else:
+            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
+
+        for t, (burned, sample) in enumerate_samples:
             ts.append(time.time())
             if burned:
                 container(namespace_to_numpy(sample))
-            if verbose and (t % report_frequency == 0 or t == T + T_burnin - 1):
+            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
                 s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
                 s += "\t# of active features: {}".format(sample.gamma.sum().item())
                 if t >= report_frequency:
@@ -624,6 +697,6 @@ class NegativeBinomialLikelihoodVariableSelector(object):
                      self.sampler.attempted_omega_updates)
         self.stats['Polya-Gamma MH stats'] = s
 
-        if verbose:
+        if verbosity == 'stdout':
             for k, v in self.stats.items():
                 print('{}: '.format(k), v)
