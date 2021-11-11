@@ -76,7 +76,7 @@ autodoc_inherit_docstrings = True
 # }
 
 MOCK_MODULES = ['numpy', 'pandas', 'torch', 'polyagamma', 'torch.distributions',
-                'torch.linalg', 'torch.nn.functional', 'tqdm', 'tqdm.contribute']
+                'torch.linalg', 'torch.nn.functional', 'tqdm', 'tqdm.contrib']
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()

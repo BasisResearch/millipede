@@ -9,6 +9,6 @@ format: FORCE
 	isort .
 
 test: lint FORCE
-	pytest -s -vx tests 
+	pytest -vx -s tests 
 
 FORCE:
