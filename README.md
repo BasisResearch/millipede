@@ -19,7 +19,7 @@ can handle datasets with numbers of data points and covariates in the tens of th
 Bayesian variable selection is a model-based approach for identifying parsimonious explanations of observed data.
 In the context of generalized linear models with `P` covariates `{X_1, ..., X_P}` and responses `Y`, 
 Bayesian variable selection can be used to identify *sparse* subsets of covariates (i.e. far fewer than `P`) 
-that are sufficient for explaining the observed responses.
+that are sufficient for explaining the observed responses in terms of a linear function of the covariates.
 
 In more detail, Bayesian variable selection is formulated as a model selection problem in which we consider 
 the space of `2^P` models in which some covariates are included and the rest are excluded.
@@ -73,7 +73,8 @@ selector = NormalLikelihoodVariableSelector(dataframe,  # pass in the data
                                             S=1,        # specify the expected number of covariates to include a priori
                                            )
 
-# run the MCMC algorithm to compute posterior inclusion probabilities and other posterior quantities of interest
+# run the MCMC algorithm to compute posterior inclusion probabilities
+#  and other posterior quantities of interest
 selector.run(T=1000, T_burnin=500)
 
 # inspect the results

@@ -40,7 +40,7 @@ class NormalLikelihoodVariableSelector(object):
         X \in \mathbb{R}^{N \times P} \qquad \qquad Y \in \mathbb{R}^{N}
 
     and are provided by the user. The user should put some thought into whether the covariates :math:`X`
-    and respones :math:`Y` should be centered and/or normalized. This is generally a good idea for the responses
+    and responses :math:`Y` should be centered and/or normalized. This is generally a good idea for the responses
     :math:`Y`, but whether pre-processing for :math:`X` is advisable depends on the nature of the dataset.
 
     The inclusion of each covariate is governed by a Bernoulli random variable :math:`\gamma_p`.
@@ -65,6 +65,7 @@ class NormalLikelihoodVariableSelector(object):
         &\beta_\gamma \sim \rm{Normal}(0, \sigma^2 \tau^{-1} \mathbb{1}_\gamma)
 
         &Y_n \sim \rm{Normal}(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma, \sigma^2)
+        \qquad \rm{for} \qquad n=1,2,...,N
 
     Note that the dimension of :math:`\beta_\gamma` depends on the number of covariates
     included in a particular model (i.e. on the number of non-zero entries in :math:`\gamma`).
@@ -88,7 +89,7 @@ class NormalLikelihoodVariableSelector(object):
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
     :param bool include_intercept: Whether to include an intercept term. If included the intercept term is
-       is included in all models so that the corresponding coefficient does not have a PIP.
+       is included in all models so that the corresponding coefficient does not have a PIP. Defaults to True.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param float c: Controls the precision of the coefficients in the gprior. Defaults to 100.0.
@@ -209,8 +210,8 @@ class NormalLikelihoodVariableSelector(object):
 
 class BinomialLikelihoodVariableSelector(object):
     r"""
-    Bayesian variable selection for a generalized linear model with a Binomial likelihood.
-    This class is appropriate for count-valued responses that are bounded.
+    Bayesian variable selection for a generalized linear model with a Binomial likelihood
+    and a logistic link function. This class is appropriate for count-valued responses that are bounded.
 
     Usage::
 
@@ -248,6 +249,7 @@ class BinomialLikelihoodVariableSelector(object):
         &\beta_\gamma \sim \rm{Normal}(0, \tau^{-1} \mathbb{1}_\gamma)
 
         &Y_n \sim \rm{Binomial}(T_n, \sigma(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma))
+        \qquad \rm{for} \qquad n=1,2,...,N
 
     where :math:`\sigma(\cdot)` is the logistic or sigmoid function and :math:`T_n` denotes the
     :math:`N`-dimensional vector of total counts. That is each Binomial likelihood is equivalent
@@ -257,7 +259,8 @@ class BinomialLikelihoodVariableSelector(object):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+        encodes a single data point. All columns apart from the response and total count column
+        are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
         for each data point.
@@ -372,8 +375,8 @@ class BinomialLikelihoodVariableSelector(object):
 
 class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     r"""
-    Bayesian variable selection for a generalized linear model with a Bernoulli likelihood.
-    This class is appropriate for binary-valued responses.
+    Bayesian variable selection for a generalized linear model with a Bernoulli likelihood
+    and a logistic link function. This class is appropriate for binary-valued responses.
 
     Usage::
 
@@ -410,6 +413,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
         &\beta_\gamma \sim \rm{Normal}(0, \tau^{-1} \mathbb{1}_\gamma)
 
         &Y_n \sim \rm{Bernoulli}(\sigma(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma))
+        \qquad \rm{for} \qquad n=1,2,...,N
 
     where :math:`\sigma(\cdot)` is the logistic or sigmoid function.
     Note that the dimension of :math:`\beta_\gamma` depends on the number of covariates
@@ -443,8 +447,8 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
 
 class NegativeBinomialLikelihoodVariableSelector(object):
     r"""
-    Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood.
-    This class is appropriate for count-valued responses that are unbounded.
+    Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood and
+    an exponential link function. This class is appropriate for count-valued responses that are unbounded.
 
     Usage::
 
@@ -484,9 +488,10 @@ class NegativeBinomialLikelihoodVariableSelector(object):
         &\log \nu \sim \rm{ImproperPrior}(-\infty, \infty)
 
         &Y_n \sim \rm{NegBinomial}(\rm{mean}=\rm{exp}(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma + \psi_{0, n}), \nu)
+        \qquad \rm{for} \qquad n=1,2,...,N
 
     Here :math:`\nu` governs the dispersion or variance of the Negative Binomial likelihood.
-    The vector :math:`\psi_0 \in \mathbb{R}^N` allows the user to supply a sample-specific offset.
+    The vector :math:`\psi_0 \in \mathbb{R}^N` allows the user to supply a datapoint-specific offset.
     In many cases setting :math:`\psi_{0, n} = 0` is a reasonable choice.
     We note that we use a parameterization of the Negative Binomial distribution where the variance is given by
 
@@ -502,7 +507,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+        encodes a single data point. All columns apart from the response and psi0 column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str psi0_column: The name of the column in `dataframe` that contains the offset
         :math:`\psi_{0, n}` for each data point.

@@ -1,7 +1,7 @@
 Bayesian Variable Selection
 ===========================
 
-Most usage cases of millipede are covered by making use of
+Most use cases of millipede are covered by making use of
 one of the four Bayesian variable selection methods listed below.
 
 NormalLikelihoodVariableSelector

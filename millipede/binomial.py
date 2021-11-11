@@ -64,7 +64,7 @@ class CountLikelihoodSampler(MCMCSampler):
 
         &Y_n \sim \rm{NegBinomial}(\rm{mean}=\rm{exp}(\beta_0 + X_{n, \gamma} \cdot \beta_\gamma + \psi_{0, n}), \nu)
 
-    The vector :math:`\psi_0 \in \mathbb{R}^N` allows the user to supply a sample-specific offset.
+    The vector :math:`\psi_0 \in \mathbb{R}^N` allows the user to supply a datapoint-specific offset.
     We note that we use a parameterization of the Negative Binomial distribution where the variance is given by
 
     .. math::
