@@ -4,8 +4,9 @@ Getting Started
 What is millipede?
 ------------------
 
-millipede is a PyTorch-based library for Bayesian variable selection that can be run on both CPU and GPU and
-can handle datasets with numbers of data points and covariates in the tens of thousands or more.
+millipede is a `PyTorch <https://pytorch.org/>`__-based library for Bayesian variable selection in generalized linear models
+that can be run on both CPU and GPU and that can handle datasets with numbers of data points and covariates 
+in the tens of thousands or more.
 
 What is Bayesian variable selection?
 ------------------------------------
@@ -17,7 +18,8 @@ that are sufficient for explaining the observed responses in terms of a linear f
 
 In more detail, Bayesian variable selection is formulated as a model selection problem in which we consider
 the space of :math:`2^P` models in which some covariates are included and the rest are excluded.
-For example, one particular model might be :math:`Y = \beta_3 X_3 + \beta_9 X_9` for coefficients :math:`\beta_3` and :math:`\beta_9`.
+For example, for continuous-valued responses one particular model might take the form :math:`Y = \beta_3 X_3 + \beta_9 X_9` 
+with (non-zero) coefficients :math:`\beta_3` and :math:`\beta_9`. 
 A priori we assume that models with fewer included covariates are more likely than those with more included covariates.
 The set of parsimonious models best supported by the data then emerges from the posterior distribution over the space of models.
 
