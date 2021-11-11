@@ -74,6 +74,9 @@ Using millipede is easy:
 
 ::
 
+    # import millipede 
+    from millipede import NormalLikelihoodVariableSelector
+    
     # create a VariableSelector object appropriate to your datatype
     selector = NormalLikelihoodVariableSelector(dataframe,  # pass in the data
                                                 'Response', # indicate the column of responses

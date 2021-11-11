@@ -67,6 +67,9 @@ pip install .
 
 Using millipede is easy:
 ```python
+# import millipede 
+from millipede import NormalLikelihoodVariableSelector
+
 # create a VariableSelector object appropriate to your datatype
 selector = NormalLikelihoodVariableSelector(dataframe,  # pass in the data
                                             'Response', # indicate the column of responses
@@ -74,7 +77,7 @@ selector = NormalLikelihoodVariableSelector(dataframe,  # pass in the data
                                            )
 
 # run the MCMC algorithm to compute posterior inclusion probabilities
-#  and other posterior quantities of interest
+# and other posterior quantities of interest
 selector.run(T=1000, T_burnin=500)
 
 # inspect the results
