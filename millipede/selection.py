@@ -12,7 +12,7 @@ from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
 
 
-def populate_weight_stats(stats, weights, quantiles=[5.0, 10.0, 20.0, 50.0, 90.0, 95.0]):
+def populate_weight_stats(selector, stats, weights, quantiles=[5.0, 10.0, 20.0, 50.0, 90.0, 95.0]):
     q5, q10, q20, q50, q90, q95 = np.percentile(weights, quantiles).tolist()
     s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
     stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
@@ -20,8 +20,80 @@ def populate_weight_stats(stats, weights, quantiles=[5.0, 10.0, 20.0, 50.0, 90.0
     stats['Weight moments'] = s.format(weights.mean().item(), weights.std().item(),
                                        weights.min().item(), weights.max().item())
 
+    T, T_burnin = selector.T, selector.T_burnin
+    elapsed_time = time.time() - selector.ts[0]
 
-class NormalLikelihoodVariableSelector(object):
+    stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
+    stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
+    stats['Number of retained samples'] = T
+    stats['Number of burn-in samples'] = T_burnin
+
+
+class BayesianVariableSelector(object):
+    """
+    Base class for all Bayesian variable selection classes.
+    """
+    def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
+        r"""
+        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
+        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
+        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+
+        :param int T: Positive integer that controls the number of MCMC samples that are
+            generated (i.e. after burn-in/adapation). Defaults to 2000.
+        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
+            generated during burn-in/adapation. Defaults to 1000.
+        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
+            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
+            Defaults to 'bar'.
+        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
+            argument is `stdout`. Defaults to 200.
+        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
+            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
+            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
+        """
+        if not isinstance(T, int) and T > 0:
+            raise ValueError("T must be a positive integer.")
+        if not isinstance(T_burnin, int) and T_burnin > 0:
+            raise ValueError("T_burnin must be a positive integer.")
+
+        self.T = T
+        self.T_burnin = T_burnin
+
+        if streaming:
+            self.container = StreamingSampleContainer()
+        else:
+            self.container = SimpleSampleContainer()
+
+        self.ts = [time.time()]
+        digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
+
+        if verbosity == 'bar':
+            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
+                                           total=T + T_burnin)
+        else:
+            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
+
+        for t, (burned, sample) in enumerate_samples:
+            self.ts.append(time.time())
+            if burned:
+                self.container(namespace_to_numpy(sample))
+            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
+                s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
+                s += "\t# of active features: {}".format(sample.gamma.sum().item())
+                if t >= report_frequency:
+                    dt = 1000.0 * (self.ts[-1] - self.ts[-1 - report_frequency]) / report_frequency
+                    s += "   mean iteration time: {:.2f} ms".format(dt)
+                print(s)
+
+        if not streaming:
+            self.samples = self.container.samples
+            self.weights = self.samples.weight
+        else:
+            self.weights = np.array(self.container._weights)
+
+
+class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     r"""
     Bayesian variable selection for a linear model with a Normal likelihood.
     The likelihood variance is controlled by an Inverse Gamma prior.
@@ -99,7 +171,7 @@ class NormalLikelihoodVariableSelector(object):
     :param float nu0: Controls the prior over the variance in the Normal likelihood. Defaults to 0.0.
     :param float lambda0: Controls the prior over the variance in the Normal likelihood. Defaults to 0.0.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
-        floating point precision. Defaults to 'double'.
+        floating point precision. Defaults to 'double'. Note that it may be ill-advised to use single precision.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
@@ -146,96 +218,39 @@ class NormalLikelihoodVariableSelector(object):
                                                verbose_constructor=False)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
-        r"""
-        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
-        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
-        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+        super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
+                    streaming=streaming, seed=seed)
 
-        :param int T: Positive integer that controls the number of MCMC samples that are
-            generated (i.e. after burn-in/adapation). Defaults to 2000.
-        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
-            generated during burn-in/adapation. Defaults to 1000.
-        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
-            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
-            Defaults to 'bar'.
-        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
-            argument is `stdout`. Defaults to 200.
-        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
-            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
-            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
-        """
-        if not isinstance(T, int) and T > 0:
-            raise ValueError("T must be a positive integer.")
-        if not isinstance(T_burnin, int) and T_burnin > 0:
-            raise ValueError("T_burnin must be a positive integer.")
-
-        if streaming:
-            container = StreamingSampleContainer()
-        else:
-            container = SimpleSampleContainer()
-
-        ts = [time.time()]
-        digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
-
-        if verbosity == 'bar':
-            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
-                                           total=T + T_burnin)
-        else:
-            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
-
-        for t, (burned, sample) in enumerate_samples:
-            ts.append(time.time())
-            if burned:
-                container(namespace_to_numpy(sample))
-            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
-                s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
-                s += "\t# of active features: {}".format(sample.gamma.sum().item())
-                if t >= report_frequency:
-                    dt = 1000.0 * (ts[-1] - ts[-1 - report_frequency]) / report_frequency
-                    s += "   mean iteration time: {:.2f} ms".format(dt)
-                print(s)
-
-        if not streaming:
-            self.samples = container.samples
-            self.weights = self.samples.weight
-        else:
-            self.weights = np.array(container._weights)
-
-        self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
+        self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
         if self.include_intercept:
-            self.beta = pd.Series(container.beta, index=self.X_columns + ["intercept"], name="Coefficient")
-            self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ["intercept"],
+            self.beta = pd.Series(self.container.beta, index=self.X_columns + ["intercept"], name="Coefficient")
+            self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns + ["intercept"],
                                       name="Coefficient StdDev")
-            self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ["intercept"],
+            self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns + ["intercept"],
                                               name="Conditional Coefficient")
-            self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns + ["intercept"],
+            self.conditional_beta_std = pd.Series(self.container.conditional_beta_std,
+                                                  index=self.X_columns + ["intercept"],
                                                   name="Conditional Coefficient StdDev")
         else:
-            self.beta = pd.Series(container.beta, index=self.X_columns, name="Coefficient")
-            self.beta_std = pd.Series(container.beta_std, index=self.X_columns, name="Coefficient StdDev")
-            self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns,
+            self.beta = pd.Series(self.container.beta, index=self.X_columns, name="Coefficient")
+            self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns, name="Coefficient StdDev")
+            self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns,
                                               name="Conditional Coefficient")
-            self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns,
+            self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=self.X_columns,
                                                   name="Conditional Coefficient StdDev")
 
         self.summary = pd.concat([self.pip, self.beta, self.beta_std,
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
-        populate_weight_stats(self.stats, self.weights)
-
-        elapsed_time = time.time() - ts[0]
-        self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
-        self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
-        self.stats['Number of retained samples'] = T
-        self.stats['Number of burn-in samples'] = T_burnin
+        populate_weight_stats(self, self.stats, self.weights)
 
         if verbosity == 'stdout':
             for k, v in self.stats.items():
                 print('{}: '.format(k), v)
 
 
-class BinomialLikelihoodVariableSelector(object):
+class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     r"""
     Bayesian variable selection for a generalized linear model with a Binomial likelihood
     and a logistic link function. This class is appropriate for count-valued responses that are bounded.
@@ -297,7 +312,7 @@ class BinomialLikelihoodVariableSelector(object):
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
-        floating point precision. Defaults to 'double'.
+        floating point precision. Defaults to 'double'. Note that it may be ill-advised to use single precision.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
@@ -341,80 +356,24 @@ class BinomialLikelihoodVariableSelector(object):
                                               verbose_constructor=False)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
-        r"""
-        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
-        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
-        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+        super().run(T=T, T_burnin=T_burnin, verbosity=verbosity,
+                    report_frequency=report_frequency, streaming=streaming, seed=seed)
 
-        :param int T: Positive integer that controls the number of MCMC samples that are
-            generated (i.e. after burn-in/adapation). Defaults to 2000.
-        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
-            generated during burn-in/adapation. Defaults to 1000.
-        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
-            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
-            Defaults to 'bar'.
-        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
-            argument is `stdout`. Defaults to 200.
-        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
-            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
-            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
-        """
-        if not isinstance(T, int) and T > 0:
-            raise ValueError("T must be a positive integer.")
-        if not isinstance(T_burnin, int) and T_burnin > 0:
-            raise ValueError("T_burnin must be a positive integer.")
-
-        if streaming:
-            container = StreamingSampleContainer()
-        else:
-            container = SimpleSampleContainer()
-
-        ts = [time.time()]
-        digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
-
-        if verbosity == 'bar':
-            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
-                                           total=T + T_burnin)
-        else:
-            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
-
-        for t, (burned, sample) in enumerate_samples:
-            ts.append(time.time())
-            if burned:
-                container(namespace_to_numpy(sample))
-            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
-                s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
-                s += "\t# of active features: {}".format(sample.gamma.sum().item())
-                if t >= report_frequency:
-                    dt = 1000.0 * (ts[-1] - ts[-1 - report_frequency]) / report_frequency
-                    s += "   mean iteration time: {:.2f} ms".format(dt)
-                print(s)
-
-        if not streaming:
-            self.samples = container.samples
-            self.weights = self.samples.weight
-        else:
-            self.weights = np.array(container._weights)
-
-        self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
-        self.beta = pd.Series(container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
-        self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ['Intercept'], name="Coefficient StdDev")
-        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ['Intercept'],
+        self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
+        self.beta = pd.Series(self.container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
+        self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns + ['Intercept'],
+                                  name="Coefficient StdDev")
+        self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns + ['Intercept'],
                                           name="Conditional Coefficient")
-        self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns + ['Intercept'],
+        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=self.X_columns + ['Intercept'],
                                               name="Conditional Coefficient StdDev")
 
         self.summary = pd.concat([self.pip, self.beta, self.beta_std,
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
-        populate_weight_stats(self.stats, self.weights)
+        populate_weight_stats(self, self.stats, self.weights)
 
-        elapsed_time = time.time() - ts[0]
-        self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
-        self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
-        self.stats['Number of retained samples'] = T
-        self.stats['Number of burn-in samples'] = T_burnin
         self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
         s = "Mean acc. prob.: {:.3f}  Accepted/Attempted: {}/{}"
         s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
@@ -482,7 +441,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
-        floating point precision. Defaults to 'double'.
+        floating point precision. Defaults to 'double'. Note that it may be ill-advised to use single precision.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
@@ -500,29 +459,11 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
                          device=device, xi_target=xi_target)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
-        r"""
-        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
-        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
-        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
-
-        :param int T: Positive integer that controls the number of MCMC samples that are
-            generated (i.e. after burn-in/adapation). Defaults to 2000.
-        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
-            generated during burn-in/adapation. Defaults to 1000.
-        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
-            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
-            Defaults to 'bar'.
-        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
-            argument is `stdout`. Defaults to 200.
-        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
-            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
-            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
-        """
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
                     streaming=streaming, seed=seed)
 
 
-class NegativeBinomialLikelihoodVariableSelector(object):
+class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     r"""
     Bayesian variable selection for a generalized linear model with a Negative Binomial likelihood and
     an exponential link function. This class is appropriate for count-valued responses that are unbounded.
@@ -594,7 +535,7 @@ class NegativeBinomialLikelihoodVariableSelector(object):
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
-        floating point precision. Defaults to 'double'.
+        floating point precision. Defaults to 'double'. Note that it may be ill-advised to use single precision.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for :math:`\log \nu` updates.
         Defaults to 0.05. For expert users only.
@@ -644,83 +585,27 @@ class NegativeBinomialLikelihoodVariableSelector(object):
                                               verbose_constructor=False)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
-        r"""
-        Run MCMC inference for :math:`T + T_{\rm burn-in}` iterations. After completion the results
-        of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
-        if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
+        super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
+                    streaming=streaming, seed=seed)
 
-        :param int T: Positive integer that controls the number of MCMC samples that are
-            generated (i.e. after burn-in/adapation). Defaults to 2000.
-        :param int T_burnin: Positive integer that controls the number of MCMC samples that are
-            generated during burn-in/adapation. Defaults to 1000.
-        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
-            If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
-            Defaults to 'bar'.
-        :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
-            argument is `stdout`. Defaults to 200.
-        :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
-            online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
-            you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
-        """
-        if not isinstance(T, int) and T > 0:
-            raise ValueError("T must be a positive integer.")
-        if not isinstance(T_burnin, int) and T_burnin > 0:
-            raise ValueError("T_burnin must be a positive integer.")
-
-        if streaming:
-            container = StreamingSampleContainer()
-        else:
-            container = SimpleSampleContainer()
-
-        ts = [time.time()]
-        digits_to_print = str(1 + int(math.log(T + T_burnin + 1, 10)))
-
-        if verbosity == 'bar':
-            enumerate_samples = tenumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed),
-                                           total=T + T_burnin)
-        else:
-            enumerate_samples = enumerate(self.sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed))
-
-        for t, (burned, sample) in enumerate_samples:
-            ts.append(time.time())
-            if burned:
-                container(namespace_to_numpy(sample))
-            if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
-                s = ("[Iteration {:0" + digits_to_print + "d}]").format(t)
-                s += "\t# of active features: {}".format(sample.gamma.sum().item())
-                if t >= report_frequency:
-                    dt = 1000.0 * (ts[-1] - ts[-1 - report_frequency]) / report_frequency
-                    s += "   mean iteration time: {:.2f} ms".format(dt)
-                print(s)
-
-        if not streaming:
-            self.samples = container.samples
-            self.weights = self.samples.weight
-        else:
-            self.weights = np.array(container._weights)
-
-        self.pip = pd.Series(container.pip, index=self.X_columns, name="PIP")
-        self.beta = pd.Series(container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
-        self.beta_std = pd.Series(container.beta_std, index=self.X_columns + ['Intercept'], name="Coefficient StdDev")
-        self.conditional_beta = pd.Series(container.conditional_beta, index=self.X_columns + ['Intercept'],
+        self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
+        self.beta = pd.Series(self.container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
+        self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns + ['Intercept'],
+                                  name="Coefficient StdDev")
+        self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns + ['Intercept'],
                                           name="Conditional Coefficient")
-        self.conditional_beta_std = pd.Series(container.conditional_beta_std, index=self.X_columns + ['Intercept'],
+        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=self.X_columns + ['Intercept'],
                                               name="Conditional Coefficienti StdDev")
 
         self.summary = pd.concat([self.pip, self.beta, self.beta_std,
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
-        populate_weight_stats(self.stats, self.weights)
+        populate_weight_stats(self, self.stats, self.weights)
 
-        self.stats['nu posterior'] = '{:.3f} +- {:.3f}'.format(container.nu, container.nu_std)
-        self.stats['log(nu) posterior'] = '{:.3f} +- {:.3f}'.format(container.log_nu, container.log_nu_std)
+        self.stats['nu posterior'] = '{:.3f} +- {:.3f}'.format(self.container.nu, self.container.nu_std)
+        self.stats['log(nu) posterior'] = '{:.3f} +- {:.3f}'.format(self.container.log_nu, self.container.log_nu_std)
 
-        elapsed_time = time.time() - ts[0]
-        self.stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
-        self.stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
-        self.stats['Number of retained samples'] = T
-        self.stats['Number of burn-in samples'] = T_burnin
         self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
         s = "Mean acc. prob.: {:.3f}  Accepted/Attempted: {}/{}"
         s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
