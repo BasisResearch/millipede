@@ -39,6 +39,17 @@ class BayesianVariableSelector(object):
         of the MCMC run can be accessed in the `summary` and `stats` attributes. Additionally,
         if `streaming == False` the `samples` attribute will contain raw samples from the MCMC algorithm.
 
+        The `summary` DataFrame contains five columns. The first column lists the Posterior Inclusion
+        Probability (PIP) for each covariate. The second column lists the posterior mean of the coefficient
+        that corresponds to each covariate. The third column lists the posterior standard deviation for
+        each coefficient. The fourth and fifth columns are analogous to the second and third columns,
+        respectively, with the difference that the fourth and fifth columns report conditional posterior
+        statistics. For example, the fourth column reports the posterior mean of each coefficient
+        conditioned on the corresponding covariate being included in the model.
+
+        self.summary = pd.concat([self.pip, self.beta, self.beta_std,
+                                  self.conditional_beta, self.conditional_beta_std], axis=1)
+
         :param int T: Positive integer that controls the number of MCMC samples that are
             generated (i.e. after burn-in/adapation). Defaults to 2000.
         :param int T_burnin: Positive integer that controls the number of MCMC samples that are
