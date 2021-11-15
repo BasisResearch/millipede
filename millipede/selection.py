@@ -47,13 +47,10 @@ class BayesianVariableSelector(object):
         statistics. For example, the fourth column reports the posterior mean of each coefficient
         conditioned on the corresponding covariate being included in the model.
 
-        self.summary = pd.concat([self.pip, self.beta, self.beta_std,
-                                  self.conditional_beta, self.conditional_beta_std], axis=1)
-
         :param int T: Positive integer that controls the number of MCMC samples that are
-            generated (i.e. after burn-in/adapation). Defaults to 2000.
+            generated (i.e. after burn-in/adaptation). Defaults to 2000.
         :param int T_burnin: Positive integer that controls the number of MCMC samples that are
-            generated during burn-in/adapation. Defaults to 1000.
+            generated during burn-in/adaptation. Defaults to 1000.
         :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
             If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
             Defaults to 'bar'.
