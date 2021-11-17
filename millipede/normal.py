@@ -8,7 +8,7 @@ from torch.distributions import Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
-from .util import leave_one_out, safe_cholesky
+from .util import leave_one_out, safe_cholesky, get_loo_inverses
 
 
 class NormalLikelihoodSampler(MCMCSampler):
@@ -254,11 +254,31 @@ class NormalLikelihoodSampler(MCMCSampler):
 
             Z_active_loo = self.Z[active_loob]
             L_XX_active_loo = safe_cholesky(XX_active_loo)
+            Z_active_loo_clone = Z_active_loo.clone()
+
             Zt_active_loo = trisolve(Z_active_loo.unsqueeze(-1), L_XX_active_loo, upper=False)[0].squeeze(-1)
             Zt_active_loo_sq = Zt_active_loo.pow(2.0).sum(-1)
+
+            F = torch.cholesky_inverse(L_active, upper=False)
+            F_loo = get_loo_inverses(F)
+            if self.include_intercept:
+                F_loo = F_loo[:-1]
+
+            Zt_active_loo2 = torch.matmul(F_loo, Z_active_loo_clone.unsqueeze(-1)).squeeze(-1)
+            Zt_active_loo_sq2 = (Zt_active_loo2 * Z_active_loo_clone).sum(-1)
+            print("delta Zt_loo_sq", (Zt_active_loo_sq2 - Zt_active_loo_sq).max().item())
+
             if self.prior == 'isotropic':
                 log_det_active = L_XX_active_loo.diagonal(dim1=-1, dim2=-2).log().sum(-1) -\
                     L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + 0.5 * math.log(self.tau)
+                X_active = self.X[:, active]
+                X_I_X_k = torch.matmul(X_active_loo, X_active.t().unsqueeze(-1))
+                F_X_I_X_k = torch.matmul(F_loo, X_I_X_k).squeeze(-1)
+                XXFXX = (X_I_X_k.squeeze(-1) * F_X_I_X_k).sum(-1)
+                XX_active_diag = XX_active.diag() if not self.include_intercept else XX_active.diag()[:-1]
+                G_k_inv = XX_active_diag - XXFXX
+                log_det_active2 = -0.5 * G_k_inv.log() + 0.5 * math.log(self.tau)
+                print("log_det_active delta",(log_det_active-log_det_active2).max().item())
 
         elif num_active == 1:
             if not self.include_intercept:

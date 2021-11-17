@@ -51,11 +51,11 @@ class BayesianVariableSelector(object):
             generated (i.e. after burn-in/adaptation). Defaults to 2000.
         :param int T_burnin: Positive integer that controls the number of MCMC samples that are
             generated during burn-in/adaptation. Defaults to 1000.
-        :param str verbosity: Controls the verbosity of the `run` method. If 'stdout', progress is reported via stdout.
+        :param str verbosity: Controls the verbosity of the `run` method. If `stdout`, progress is reported via stdout.
             If `bar`, then progress is reported via a progress bar. If `None`, then nothing is reported.
-            Defaults to 'bar'.
+            Defaults to `bar`.
         :param int report_frequency: Controls the frequency with which progress is reported if the `verbosity`
-            argument is `stdout`. Defaults to 200.
+            argument is `stdout`. Defaults to 200, i.e. every 200 MCMC iterations.
         :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
             online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
             you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).

@@ -25,6 +25,32 @@ def safe_cholesky(A, epsilon=1.0e-8):
         raise e
 
 
+def get_loo_inverses(F):
+    N = F.size(-1)
+
+    mask = torch.ones(N, N, N).bool()
+    idx = torch.arange(N)
+    mask[idx, idx] = 0
+    mask[idx, :, idx] = 0
+    F_sub = F.expand(N, N, N)[mask].reshape(N, N - 1, N - 1)
+
+    mask = torch.zeros(N, N, N).bool()
+    mask[idx, idx] = 1
+    mask[idx, idx, idx] = 0
+    F_top = F.expand(N, N, N)[mask].reshape(N, 1, N - 1)
+
+    mask = torch.zeros(N, N, N).bool()
+    mask[idx, :, idx] = 1
+    mask[idx, idx, idx] = 0
+    F_left = F.expand(N, N, N)[mask].reshape(N, N - 1, 1)
+
+    F_corner = F[idx, idx]
+
+    F_loo = F_sub - torch.matmul(F_left, F_top) / F_corner.unsqueeze(-1).unsqueeze(-1)
+
+    return F_loo
+
+
 def leave_one_out(x):
     N = x.size(-1)
     mask = ~torch.eye(N, N, device=x.device).bool()
