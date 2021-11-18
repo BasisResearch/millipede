@@ -207,6 +207,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             Zt_active = trisolve(Z_active.unsqueeze(-1), L_active, upper=False)[0].squeeze(-1)
             Xt_active = trisolve(X_activeb.t(), L_active, upper=False)[0].t()
             XtZt_active = einsum("np,p->n", Xt_active, Zt_active)
+            #XtZt_active = torch.mv(X_activeb, torch.mv(F, Z_active))
 
             if self.XX is None:
                 G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
@@ -254,13 +255,13 @@ class NormalLikelihoodSampler(MCMCSampler):
                 F_loo = F_loo[:-1]
 
             Zt_active_loo = matmul(F_loo, Z_active_loo.unsqueeze(-1)).squeeze(-1)
-            Zt_active_loo_sq = (Zt_active_loo * Z_active_loo).sum(-1)
+            Zt_active_loo_sq = einsum("ij,ij->i", Zt_active_loo, Z_active_loo)
 
             if self.prior == 'isotropic':
                 X_active = self.X[:, active]
                 X_I_X_k = matmul(X_active_loo, X_active.t().unsqueeze(-1))
                 F_X_I_X_k = matmul(F_loo, X_I_X_k).squeeze(-1)
-                XXFXX = (X_I_X_k.squeeze(-1) * F_X_I_X_k).sum(-1)
+                XXFXX = einsum("ij,ij->i", X_I_X_k.squeeze(-1), F_X_I_X_k)
                 XX_active_diag = XX_active.diag() if not self.include_intercept else XX_active.diag()[:-1]
                 G_k_inv = XX_active_diag - XXFXX
                 log_det_active = -0.5 * G_k_inv.log() + 0.5 * math.log(self.tau)
