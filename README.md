@@ -8,7 +8,7 @@
                            millipede      )  (
                       _ _ _ _ _ _ _ _ _ _(.--.)
                      {_{_{_{_{_{_{_{_{_{_( '_')
-                     /\/\/\/\/\/\/\/\/\/\ `---
+                     nnnnnnnnnnnnnnnnnnnn `---
 ```
 
 millipede is a [PyTorch](https://pytorch.org/)-based library for Bayesian variable selection in generalized
