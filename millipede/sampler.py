@@ -8,6 +8,7 @@ class MCMCSampler(object):
     def mcmc_chain(self, T_burnin, T, seed=None):
         self.t = 0
         self.T_burnin = T_burnin
+        self.T = T
         sample = self.initialize_sample(seed=seed)
 
         for step in range(T_burnin + T):
