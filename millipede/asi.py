@@ -59,7 +59,8 @@ class ASISampler(NormalLikelihoodSampler):
 
         sample = SimpleNamespace(gamma=torch.zeros(self.P, device=self.device).bool(),
                                  _active=torch.tensor([], device=self.device, dtype=torch.int64),
-                                 add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype))
+                                 add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
+                                 weight=torch.tensor(1.0, device=self.device, dtype=self.dtype))
 
         if self.compute_betas:
             sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
@@ -85,8 +86,8 @@ class ASISampler(NormalLikelihoodSampler):
         logq_prop = q_curr.log_prob(flips).sum().item()
         logq_curr = q_prop.log_prob(flips).sum().item()
 
-        log_target_curr, _, _ = self.compute_log_target(sample=sample)
-        log_target_prop, active_prop, activeb_prop = self.compute_log_target(gamma=gamma_prop)
+        log_target_curr, _, _, LLZ_curr = self.compute_log_target(sample=sample)
+        log_target_prop, active_prop, activeb_prop, LLZ_prop = self.compute_log_target(gamma=gamma_prop)
 
         accept = log_target_prop - log_target_curr + logq_curr - logq_prop
         accept = min(1.0, accept.exp().item())
@@ -99,8 +100,17 @@ class ASISampler(NormalLikelihoodSampler):
             sample._active = active_prop
             if self.include_intercept:
                 sample._activeb = activeb_prop
-            # sample._beta = beta_prop
-            # sample.beta_mean = beta_mean_prop
+            L, LZ = LLZ_prop
+        else:
+            L, LZ = LLZ_curr
+
+        if self.compute_betas and self.t >= self.T_burnin:
+            beta_active = trisolve(LZ.unsqueeze(-1), L.t(), upper=True)[0].squeeze(-1)
+            sample.beta = self.X.new_zeros(self.Pb)
+            if self.include_intercept:
+                sample.beta[sample._activeb] = beta_active
+            else:
+                sample.beta[sample._active] = beta_active
 
         sample.add_prob = sigmoid(self._compute_add_prob(sample))
 
@@ -137,10 +147,4 @@ class ASISampler(NormalLikelihoodSampler):
         h_factor = num_active * (self.log_h + 0.5 * math.log(self.tau)) + num_inactive * self.log_1mh
         log_factor = logdet - 0.5 * self.N * (self.YY - norm(LZ).pow(2.0)).log() + h_factor
 
-        # mean = chosolve(self.X_kappa[activeb].unsqueeze(-1), L).squeeze(-1)
-        # beta_active = mean + trisolve(torch.randn(activeb.size(-1), 1), L, upper=False)[0].squeeze(-1)
-        # beta, beta_mean = torch.zeros(self.P + 1), torch.zeros(self.P + 1)
-        # beta[activeb], beta_mean[activeb] = beta_active, mean
-        # return 0.5 * norm(LZ, dim=0).pow(2.0) - logdet + h_factor, L, beta, beta_active, beta_mean
-
-        return log_factor, active, activeb
+        return log_factor, active, activeb, (L, LZ)

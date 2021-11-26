@@ -4,6 +4,7 @@ from millipede.binomial import CountLikelihoodSampler
 from millipede.normal import NormalLikelihoodSampler
 from millipede.asi import ASISampler
 from millipede.selection import (
+    ASIVariableSelector,
     BernoulliLikelihoodVariableSelector,
     BinomialLikelihoodVariableSelector,
     NegativeBinomialLikelihoodVariableSelector,
@@ -11,6 +12,8 @@ from millipede.selection import (
 )
 
 __all__ = [
+        "ASIVariableSelector",
+        "ASISampler",
         "BernoulliLikelihoodVariableSelector",
         "BinomialLikelihoodVariableSelector",
         "CountLikelihoodSampler",
