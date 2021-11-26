@@ -4,7 +4,7 @@ import pytest
 import torch
 from common import assert_close
 
-from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector, ASISampler, ASIVariableSelector
+from millipede import ASISampler, ASIVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 

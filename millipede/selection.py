@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from tqdm.contrib import tenumerate
 
-from millipede import CountLikelihoodSampler, NormalLikelihoodSampler, ASISampler
+from millipede import ASISampler, CountLikelihoodSampler, NormalLikelihoodSampler
 
 from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy

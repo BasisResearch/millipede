@@ -1,11 +1,11 @@
-from types import SimpleNamespace
 import math
+from types import SimpleNamespace
 
 import torch
-from torch.distributions import Bernoulli, Uniform
-from torch.linalg import norm
 from torch import sigmoid
 from torch import triangular_solve as trisolve
+from torch.distributions import Bernoulli, Uniform
+from torch.linalg import norm
 
 from .normal import NormalLikelihoodSampler
 from .util import safe_cholesky
