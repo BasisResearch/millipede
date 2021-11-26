@@ -53,7 +53,6 @@ class ASISampler(NormalLikelihoodSampler):
         self.D = self.zeta * torch.min(torch.ones(1, device=pi.device, dtype=pi.dtype), (1.0 - pi) / pi)
 
     def initialize_sample(self, seed=None):
-        self.num_accepted = 0
         if seed is not None:
             torch.manual_seed(seed)
 
@@ -95,7 +94,6 @@ class ASISampler(NormalLikelihoodSampler):
         accept_bool = self.uniform_dist.sample().item() < accept
 
         if accept_bool:
-            self.num_accepted += 1
             sample.gamma = gamma_prop
             sample._active = active_prop
             if self.include_intercept:
