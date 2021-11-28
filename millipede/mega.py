@@ -4,21 +4,23 @@ from types import SimpleNamespace
 import torch
 from torch import einsum, matmul, sigmoid
 from torch import triangular_solve as trisolve
-from torch.distributions import Bernoulli, Uniform
+from torch.distributions import Bernoulli, Uniform, Gumbel
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
-from .util import get_loo_inverses, leave_one_out, safe_cholesky
+from .util import get_loo_inverses, leave_one_out, safe_cholesky, set_subtract
 
 
 class MegaSampler(MCMCSampler):
     def __init__(self, X, Y, S=5,
+                 spotlight=16,
                  include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4, c=100.0,
                  nu0=0.0, lambda0=0.0,
                  precompute_XX=False,
                  compute_betas=False, verbose_constructor=True):
 
+        self.spotlight = spotlight
         self.N, self.P = X.shape
         assert (self.N,) == Y.shape
 
@@ -66,16 +68,16 @@ class MegaSampler(MCMCSampler):
         self.epsilon = 1.0e-18
 
         self.epsilon_asi = 0.1 / self.P
-        self.zeta = torch.tensor(0.90)
-        self.pi = self.h * torch.ones(self.P)
+        self.zeta = torch.tensor(0.95)
         self.acc_target = 0.25
         self.lambda_exponent = 0.75
         self.log_h = math.log(self.h)
         self.log_1mh = math.log1p(-self.h)
 
-        self.update_zeta_AD(0.0)
+        self.update_zeta(0.0)
 
         self.uniform_dist = Uniform(0.0, torch.ones(1, device=X.device, dtype=X.dtype))
+        self.num_accepted = 0
 
         if verbose_constructor:
             print("Initialized ASISampler with (N, P, S) = ({}, {}, {:.1f})".format(self.N, self.P, S))
@@ -87,17 +89,16 @@ class MegaSampler(MCMCSampler):
     def sigmoid_eps(self, y):
         return (1.0 - self.epsilon_asi) * sigmoid(y) + self.epsilon_asi * sigmoid(-y)
 
-    def update_zeta_AD(self, delta):
+    def update_zeta(self, delta):
         self.zeta = self.sigmoid_eps(self.logit_eps(self.zeta) + delta)
-        pi = self.epsilon_asi + (1.0 - 2.0 * self.epsilon_asi) * self.pi
-        self.A = self.zeta * torch.min(torch.ones(1, device=pi.device, dtype=pi.dtype), pi / (1.0 - pi))
-        self.D = self.zeta * torch.min(torch.ones(1, device=pi.device, dtype=pi.dtype), (1.0 - pi) / pi)
 
     def initialize_sample(self, seed=None):
         if seed is not None:
             torch.manual_seed(seed)
 
         sample = SimpleNamespace(gamma=torch.zeros(self.P, device=self.device).bool(),
+                                 _inactive_search=torch.randperm(self.P, device=self.device)[:self.spotlight],
+                                 _gumbel=torch.zeros(self.P, device=self.device, dtype=self.dtype),
                                  _active=torch.tensor([], device=self.device, dtype=torch.int64),
                                  add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
                                  weight=torch.tensor(1.0, device=self.device, dtype=self.dtype))
@@ -113,29 +114,54 @@ class MegaSampler(MCMCSampler):
     def mcmc_move(self, sample):
         self.t += 1
 
-        gamma_curr = sample.gamma.double()
-        q_curr = Bernoulli(gamma_curr * self.D + (1.0 - gamma_curr) * self.A)
+        search = torch.cat([sample._active, sample._inactive_search])
+        pi_search = self.epsilon_asi + (1.0 - 2.0 * self.epsilon_asi) * sigmoid(sample._gumbel[search])
+        one = torch.ones(1, device=pi_search.device, dtype=pi_search.dtype)
+        A_search = self.zeta * torch.min(one, pi_search / (1.0 - pi_search))
+        D_search = self.zeta * torch.min(one, (1.0 - pi_search) / pi_search)
+
+        gamma_curr = sample.gamma[search].double()
+        q_curr = Bernoulli(gamma_curr * D_search + (1.0 - gamma_curr) * A_search)
         flips = q_curr.sample()
         flips_bool = flips.bool()
 
-        gamma_prop = sample.gamma.clone()
+        gamma_prop = gamma_curr.clone().bool()
         gamma_prop[flips_bool] = ~gamma_prop[flips_bool]
 
-        q_prop = Bernoulli(gamma_prop.double() * self.D + (1.0 - gamma_prop.double()) * self.A)
+        q_prop = Bernoulli(gamma_prop.double() * D_search + (1.0 - gamma_prop.double()) * A_search)
 
         logq_prop = q_curr.log_prob(flips).sum().item()
         logq_curr = q_prop.log_prob(flips).sum().item()
 
+        gamma_prop_full = sample.gamma.clone()
+        gamma_prop_full[search] = gamma_prop
+
         log_target_curr, _, _, LLZ_curr = self.compute_log_target(sample=sample)
-        log_target_prop, active_prop, activeb_prop, LLZ_prop = self.compute_log_target(gamma=gamma_prop)
+        log_target_prop, active_prop, activeb_prop, LLZ_prop = self.compute_log_target(gamma=gamma_prop_full)
+
+        sample_prop = SimpleNamespace(gamma=gamma_prop_full,
+                                      _inactive_search=sample._inactive_search,
+                                      _gumbel=sample._gumbel,
+                                      _active=active_prop,
+                                      add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype))
+        if self.include_intercept:
+            sample_prop._activeb = activeb_prop
+
+        sample.add_prob = self._compute_add_prob(sample)
+        sample_prop.add_prob = self._compute_add_prob(sample_prop)
+        lam = sample.add_prob[search]
+
+        delta_log_gumbel =
 
         accept = log_target_prop - log_target_curr + logq_curr - logq_prop
         accept = min(1.0, accept.exp().item())
+        #print("%.4f" % accept, sample._active.data.numpy(), " => ", active_prop.data.numpy())
 
         accept_bool = self.uniform_dist.sample().item() < accept
 
         if accept_bool:
-            sample.gamma = gamma_prop
+            self.num_accepted += 1
+            sample.gamma = gamma_prop_full
             sample._active = active_prop
             if self.include_intercept:
                 sample._activeb = activeb_prop
@@ -151,13 +177,13 @@ class MegaSampler(MCMCSampler):
             else:
                 sample.beta[sample._active] = beta_active
 
-        sample.add_prob = sigmoid(self._compute_add_prob(sample))
+        inactive_search = torch.randperm(self.P, device=self.device)[:self.spotlight]
+        sample._inactive_search = set_subtract(inactive_search, sample._active)
 
         if self.t <= self.T_burnin:
             t = self.t
-            self.pi = (t / (t + 1)) * self.pi + sample.add_prob / (t + 1)
             phi_t = 1.0 / math.pow(t, self.lambda_exponent)
-            self.update_zeta_AD(phi_t * (accept - self.acc_target))
+            self.update_zeta(phi_t * (accept - self.acc_target))
 
         return sample
 
@@ -165,18 +191,19 @@ class MegaSampler(MCMCSampler):
         active = sample._active
         activeb = sample._activeb if self.include_intercept else sample._active
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
+        inactive_search = sample._inactive_search
         num_active = active.size(-1)
 
         assert num_active < self.P, "The MCMC sampler has been driven into a regime where " +\
             "all covariates have been selected. Are you sure you have chosen a reasonable prior? " +\
             "Are you sure there is signal in your data?"
 
-        X_k = self.X[:, inactive]
-        Z_k = self.Z[inactive]
+        X_k = self.X[:, inactive_search]
+        Z_k = self.Z[inactive_search]
         if self.XX is None:
             XX_k = norm(X_k, dim=0).pow(2.0)
         else:
-            XX_k = self.XX_diag[inactive]
+            XX_k = self.XX_diag[inactive_search]
 
         if self.include_intercept or num_active > 0:
             X_activeb = self.X[:, activeb]
@@ -199,7 +226,7 @@ class MegaSampler(MCMCSampler):
             if self.XX is None:
                 G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
             else:
-                normsq = trisolve(self.XX[activeb][:, inactive], L_active, upper=False)[0]
+                normsq = trisolve(self.XX[activeb][:, inactive_search], L_active, upper=False)[0]
                 G_k_inv = XX_k + self.tau - norm(normsq, dim=0).pow(2.0)
 
             W_k_sq = (einsum("np,n->p", X_k, XtZt_active) - Z_k).pow(2.0) / (G_k_inv + self.epsilon)
@@ -266,11 +293,18 @@ class MegaSampler(MCMCSampler):
         log_S_ratio = (self.YY - Zt_active_loo_sq).log() - (self.YY - Zt_active_sq).log()
         log_odds_active = self.log_h_ratio + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
 
-        log_odds = self.X.new_zeros(self.P)
-        log_odds[inactive] = log_odds_inactive
-        log_odds[active] = log_odds_active
+        sample._gumbel[active] = Gumbel(loc=log_odds_active, scale=1.0).sample()
+        sample._gumbel[inactive_search] = Gumbel(loc=log_odds_inactive, scale=1.0).sample()
 
-        return log_odds
+        pip = sample.gamma.double().clone()
+        pip[active] = sigmoid(log_odds_active)
+        pip[inactive_search] = sigmoid(log_odds_inactive)
+
+        #pips = pip.data.numpy().tolist()[:3]
+        #pips += sample.gamma.double().tolist()[:3]
+        #print("%.3f %.3f %.3f   %.1f %.1f %.1f" % tuple(pips))
+
+        return pip
 
     def compute_log_target(self, sample=None, gamma=None):
         gamma = gamma if gamma is not None else sample.gamma
