@@ -10,7 +10,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 
 def test_linear_correlated(precompute_XX=False, include_intercept=False,
                            N=128, P=16, intercept=2.34, report_frequency=200,
-                           T=4000, T_burnin=1000, seed=1):
+                           T=200000, T_burnin=1000, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()

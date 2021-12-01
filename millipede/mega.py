@@ -114,13 +114,12 @@ class MegaSampler(MCMCSampler):
     def mcmc_move(self, sample):
         self.t += 1
 
-        search = torch.cat([sample._active, sample._inactive_search])
-        pi_search = self.epsilon_asi + (1.0 - 2.0 * self.epsilon_asi) * sigmoid(sample._gumbel[search])
+        pi_search = self.epsilon_asi + (1.0 - 2.0 * self.epsilon_asi) * sigmoid(sample._gumbel)
         one = torch.ones(1, device=pi_search.device, dtype=pi_search.dtype)
         A_search = self.zeta * torch.min(one, pi_search / (1.0 - pi_search))
         D_search = self.zeta * torch.min(one, (1.0 - pi_search) / pi_search)
 
-        gamma_curr = sample.gamma[search].double()
+        gamma_curr = sample.gamma.double()
         q_curr = Bernoulli(gamma_curr * D_search + (1.0 - gamma_curr) * A_search)
         flips = q_curr.sample()
         flips_bool = flips.bool()
@@ -134,7 +133,7 @@ class MegaSampler(MCMCSampler):
         logq_curr = q_prop.log_prob(flips).sum().item()
 
         gamma_prop_full = sample.gamma.clone()
-        gamma_prop_full[search] = gamma_prop
+        gamma_prop_full = gamma_prop
 
         log_target_curr, _, _, LLZ_curr = self.compute_log_target(sample=sample)
         log_target_prop, active_prop, activeb_prop, LLZ_prop = self.compute_log_target(gamma=gamma_prop_full)
@@ -147,13 +146,14 @@ class MegaSampler(MCMCSampler):
         if self.include_intercept:
             sample_prop._activeb = activeb_prop
 
-        sample.add_prob = self._compute_add_prob(sample)
-        sample_prop.add_prob = self._compute_add_prob(sample_prop)
-        lam = sample.add_prob[search]
+        pip, log_odds = self._compute_add_prob(sample)
+        pip_prop, log_odds_prop = self._compute_add_prob(sample_prop)
+        sample.add_prob = pip
+        sample_prop.add_prob = pip_prop
 
-        delta_log_gumbel =
+        delta_log_gumbel = pip_prop - pip + (pip - sample._gumbel).exp() - (pip_prop - sample._gumbel).exp()
 
-        accept = log_target_prop - log_target_curr + logq_curr - logq_prop
+        accept = log_target_prop - log_target_curr + logq_curr - logq_prop + delta_log_gumbel.sum()
         accept = min(1.0, accept.exp().item())
         #print("%.4f" % accept, sample._active.data.numpy(), " => ", active_prop.data.numpy())
 
@@ -161,13 +161,15 @@ class MegaSampler(MCMCSampler):
 
         if accept_bool:
             self.num_accepted += 1
-            sample.gamma = gamma_prop_full
-            sample._active = active_prop
-            if self.include_intercept:
-                sample._activeb = activeb_prop
+            sample = sample_prop
+            #sample.gamma = gamma_prop_full
+            #sample._active = active_prop
+            #if self.include_intercept:
+            #    sample._activeb = activeb_prop
             L, LZ = LLZ_prop
         else:
             L, LZ = LLZ_curr
+            log_odds = log_odds_prop
 
         if self.compute_betas and self.t >= self.T_burnin:
             beta_active = trisolve(LZ.unsqueeze(-1), L.t(), upper=True)[0].squeeze(-1)
@@ -177,8 +179,10 @@ class MegaSampler(MCMCSampler):
             else:
                 sample.beta[sample._active] = beta_active
 
-        inactive_search = torch.randperm(self.P, device=self.device)[:self.spotlight]
-        sample._inactive_search = set_subtract(inactive_search, sample._active)
+        #inactive_search = torch.randperm(self.P, device=self.device)[:self.spotlight]
+        #sample._inactive_search = set_subtract(inactive_search, sample._active)
+
+        sample._gumbel = Gumbel(loc=log_odds, scale=1.0).sample()
 
         if self.t <= self.T_burnin:
             t = self.t
@@ -187,11 +191,11 @@ class MegaSampler(MCMCSampler):
 
         return sample
 
-    def _compute_add_prob(self, sample, return_log_odds=False):
+    def _compute_add_prob(self, sample, sample_gumbel=True):
         active = sample._active
         activeb = sample._activeb if self.include_intercept else sample._active
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
-        inactive_search = sample._inactive_search
+        inactive_search = inactive
         num_active = active.size(-1)
 
         assert num_active < self.P, "The MCMC sampler has been driven into a regime where " +\
@@ -293,18 +297,25 @@ class MegaSampler(MCMCSampler):
         log_S_ratio = (self.YY - Zt_active_loo_sq).log() - (self.YY - Zt_active_sq).log()
         log_odds_active = self.log_h_ratio + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
 
-        sample._gumbel[active] = Gumbel(loc=log_odds_active, scale=1.0).sample()
-        sample._gumbel[inactive_search] = Gumbel(loc=log_odds_inactive, scale=1.0).sample()
+        #if sample_gumbel:
+        #    sample._gumbel[active] = Gumbel(loc=log_odds_active, scale=1.0).sample()
+        #    sample._gumbel[inactive_search] = Gumbel(loc=log_odds_inactive, scale=1.0).sample()
 
-        pip = sample.gamma.double().clone()
-        pip[active] = sigmoid(log_odds_active)
-        pip[inactive_search] = sigmoid(log_odds_inactive)
+        if num_active:
+            log_odds = torch.cat([log_odds_active, log_odds_inactive])
+        else:
+            log_odds = log_odds_inactive
+        pip = sigmoid(log_odds)
+
+        #pip = sample.gamma.double().clone()
+        #pip[active] = sigmoid(log_odds_active)
+        #pip[inactive_search] = sigmoid(log_odds_inactive)
 
         #pips = pip.data.numpy().tolist()[:3]
         #pips += sample.gamma.double().tolist()[:3]
         #print("%.3f %.3f %.3f   %.1f %.1f %.1f" % tuple(pips))
 
-        return pip
+        return pip, log_odds
 
     def compute_log_target(self, sample=None, gamma=None):
         gamma = gamma if gamma is not None else sample.gamma
