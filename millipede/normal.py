@@ -207,14 +207,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             Zt_active = trisolve(Z_active.unsqueeze(-1), L_active, upper=False)[0].squeeze(-1)
             Xt_active = trisolve(X_activeb.t(), L_active, upper=False)[0].t()
             XtZt_active = einsum("np,p->n", Xt_active, Zt_active)
-            #XtZt_active = torch.mv(X_activeb, torch.mv(F, Z_active))
 
-            if self.XX is None:
-                G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
-            else:
-                normsq = trisolve(self.XX[activeb][:, inactive], L_active, upper=False)[0]
-                G_k_inv = XX_k + self.tau - norm(normsq, dim=0).pow(2.0)
-
+            G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
             W_k_sq = (einsum("np,n->p", X_k, XtZt_active) - Z_k).pow(2.0) / (G_k_inv + self.epsilon)
             Zt_active_sq = Zt_active.pow(2.0).sum()
 
@@ -237,7 +231,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample.beta = self.X.new_zeros(self.Pb)
 
         if num_active > 1:
-            active_loo = leave_one_out(active)  # I  I-1
+            active_loo = leave_one_out(active)  # I I-1
 
             if self.include_intercept:
                 active_loob = torch.cat([active_loo,
