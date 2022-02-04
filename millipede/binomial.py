@@ -163,7 +163,7 @@ class CountLikelihoodSampler(MCMCSampler):
         self.tau_intercept = tau_intercept
 
         self.epsilon = 1.0e-18
-        self.xi = torch.tensor([5.0])
+        self.xi = torch.tensor([5.0], device=X.device)
         self.xi_target = xi_target
 
         self.omega_mh = omega_mh
@@ -195,7 +195,7 @@ class CountLikelihoodSampler(MCMCSampler):
         _kappa_omega = _kappa - _omega * _psi0
         _Z = einsum("np,n->p", self.Xb, _kappa_omega)
 
-        sample = SimpleNamespace(gamma=torch.zeros(self.P).bool(),
+        sample = SimpleNamespace(gamma=self.Xb.new_zeros(self.P).bool(),
                                  add_prob=self.Xb.new_zeros(self.P),
                                  _i_prob=self.Xb.new_zeros(self.P),
                                  _psi=self.Xb.new_zeros(self.N),
@@ -243,7 +243,7 @@ class CountLikelihoodSampler(MCMCSampler):
         if num_active > 1:
             active_loo = leave_one_out(active)  # I  I-1
             active_loob = torch.cat([active_loo,
-                                     (self.P * torch.ones(active_loo.size(0))).long().unsqueeze(-1)], dim=-1)
+                                     (self.P * active_loo.new_ones(active_loo.size(0))).long().unsqueeze(-1)], dim=-1)
             X_active_loo = X_omega[:, active_loob].permute(1, 2, 0)  # I I N
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I I
             XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
@@ -297,7 +297,7 @@ class CountLikelihoodSampler(MCMCSampler):
         if sample._idx.item() >= 0:
             sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
             sample._active = torch.nonzero(sample.gamma).squeeze(-1)
-            sample._activeb = torch.cat([sample._active, torch.tensor([self.P])])
+            sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=sample.gamma.device)])
             sample = self.sample_beta(sample)
         else:
             sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
