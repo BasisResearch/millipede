@@ -245,9 +245,6 @@ class CountLikelihoodSampler(MCMCSampler):
             active_loob = torch.cat([active_loo,
                                      (self.P * active_loo.new_ones(active_loo.size(0)).long().unsqueeze(-1))], dim=-1)
             X_active_loo = X_omega[:, active_loob].permute(1, 2, 0)  # I I N
-            XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I I
-            XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
-            XX_active_loo[:, -1, -1].add_(self.tau_intercept - self.tau)
             Z_active_loo = sample._Z[active_loob]
 
             F = torch.cholesky_inverse(self._L_active, upper=False)
