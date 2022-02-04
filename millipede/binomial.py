@@ -12,7 +12,7 @@ from torch.linalg import norm
 from torch.nn.functional import softplus
 
 from .sampler import MCMCSampler
-from .util import leave_one_out, safe_cholesky
+from .util import get_loo_inverses, leave_one_out, safe_cholesky
 
 
 class CountLikelihoodSampler(MCMCSampler):
@@ -248,13 +248,20 @@ class CountLikelihoodSampler(MCMCSampler):
             XX_active_loo = matmul(X_active_loo, X_active_loo.transpose(-1, -2))  # I I I
             XX_active_loo.diagonal(dim1=-2, dim2=-1).add_(self.tau)
             XX_active_loo[:, -1, -1].add_(self.tau_intercept - self.tau)
-
             Z_active_loo = sample._Z[active_loob]
-            L_XX_active_loo = safe_cholesky(XX_active_loo)
-            Zt_active_loo_sq = trisolve(Z_active_loo.unsqueeze(-1),
-                                        L_XX_active_loo, upper=False)[0].squeeze(-1).pow(2.0).sum(-1)
-            log_det_ratio_active = L_XX_active_loo.diagonal(dim1=-1, dim2=-2).log().sum(-1) -\
-                self._L_active.diagonal(dim1=-1, dim2=-2).log().sum(-1) + self.half_log_tau
+
+            F = torch.cholesky_inverse(self._L_active, upper=False)
+            F_loo = get_loo_inverses(F)[:-1]
+
+            Zt_active_loo = matmul(F_loo, Z_active_loo.unsqueeze(-1)).squeeze(-1)
+            Zt_active_loo_sq = einsum("ij,ij->i", Zt_active_loo, Z_active_loo)
+
+            X_active = X_omega[:, active]
+            X_I_X_k = matmul(X_active_loo, X_active.t().unsqueeze(-1))
+            F_X_I_X_k = matmul(F_loo, X_I_X_k).squeeze(-1)
+            XXFXX = einsum("ij,ij->i", X_I_X_k.squeeze(-1), F_X_I_X_k)
+            G_k_inv = norm(X_active, dim=0).pow(2.0) + self.tau - XXFXX
+            log_det_ratio_active = -0.5 * G_k_inv.log() + self.half_log_tau
         elif num_active == 1:
             tau_plus_omega = self.tau_intercept + sample._omega.sum()
             Zt_active_loo_sq = sample._kappa_omega.sum().pow(2.0) / tau_plus_omega
