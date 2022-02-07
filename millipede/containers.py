@@ -56,6 +56,18 @@ class SimpleSampleContainer(object):
         return np.sqrt(np.dot(np.exp(2.0 * self.samples.log_nu), self.weights) - self.nu ** 2).item()
 
     @cached_property
+    def S_alpha(self):
+        return np.dot(self.samples.S_alpha, self.weights).item()
+
+    @cached_property
+    def S_beta(self):
+        return np.dot(self.samples.S_beta, self.weights).item()
+
+    @cached_property
+    def S_alpha_beta_ratio(self):
+        return np.dot(self.samples.S_alpha / (self.samples.S_alpha + self.samples.S_beta), self.weights).item()
+
+    @cached_property
     def conditional_beta(self):
         divisor = np.dot(self.samples.gamma.T, self.weights)
         if self.beta.shape != divisor.shape:
@@ -97,6 +109,10 @@ class StreamingSampleContainer(object):
                 self._log_nu_sq = np.square(sample.log_nu) * sample.weight
                 self._nu = np.exp(sample.log_nu) * sample.weight
                 self._nu_sq = np.exp(2.0 * sample.log_nu) * sample.weight
+            if hasattr(sample, 'S_alpha'):
+                self._S_alpha = sample.S_alpha * sample.weight
+                self._S_beta = sample.S_beta * sample.weight
+                self._S_alpha_beta_ratio = (sample.S_alpha / (sample.S_alpha + sample.S_beta)) * sample.weight
         else:
             factor = 1.0 - 1.0 / self._num_samples
             self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
@@ -109,6 +125,12 @@ class StreamingSampleContainer(object):
                     (np.square(sample.log_nu) * sample.weight) / self._num_samples
                 self._nu = factor * self._nu + (np.exp(sample.log_nu) * sample.weight) / self._num_samples
                 self._nu_sq = factor * self._nu_sq + (np.exp(2.0 * sample.log_nu) * sample.weight) / self._num_samples
+            if hasattr(sample, 'S_alpha'):
+                self._S_alpha = factor * self._S_alpha + (sample.S_alpha * sample.weight) / self._num_samples
+                self._S_beta = factor * self._S_beta + (sample.S_beta * sample.weight) / self._num_samples
+                S_alpha_beta = sample.S_alpha / (sample.S_alpha + sample.S_beta)
+                self._S_alpha_beta_ratio = factor * self._S_alpha_beta_ratio +\
+                    (S_alpha_beta * sample.weight) / self._num_samples
 
     @cached_property
     def _normalizer(self):
@@ -141,6 +163,18 @@ class StreamingSampleContainer(object):
     @cached_property
     def nu_std(self):
         return np.sqrt(self._normalizer * self._nu_sq - self.nu ** 2).item()
+
+    @cached_property
+    def S_alpha(self):
+        return self._normalizer * self._S_alpha
+
+    @cached_property
+    def S_beta(self):
+        return self._normalizer * self._S_beta
+
+    @cached_property
+    def S_alpha_beta_ratio(self):
+        return self._normalizer * self._S_alpha_beta_ratio
 
     @cached_property
     def conditional_beta(self):

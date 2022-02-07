@@ -89,3 +89,5 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
         assert_close(selector.conditional_beta.values[-1].item(),
                      selector.beta.values[-1].item(), atol=1.0e-6)
     assert_close(selector.conditional_beta.values[2:P], np.zeros(P - 2), atol=0.15)
+
+    print("[selector.stats]\n", selector.stats)

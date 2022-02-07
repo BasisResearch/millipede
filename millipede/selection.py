@@ -255,6 +255,10 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
+        for s in ['S_alpha', 'S_beta', 'S_alpha_beta_ratio']:
+            if hasattr(self.container, s):
+                self.stats['Mean ' + s] = getattr(self.container, s)
+
         populate_weight_stats(self, self.stats, self.weights)
 
         if verbosity == 'stdout':
