@@ -32,6 +32,12 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
 
+    Alternatively, if :math:`h` is not known a priori we can put a prior on :math:`h`:
+
+    .. math::
+
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
+
     Putting this together, the model specification for an isotopric prior (with an intercept
     :math:`\beta_0` included) is as follows:
 
@@ -61,7 +67,13 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     :param tensor X: A N x P `torch.Tensor` of covariates.
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
-    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
+        variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
+        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
+        covariates in the posterior can vary significantly from prior expectations, since the posterior is in
+        effect a compromise between the prior and the observed data.
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
     :param bool include_intercept: Whether to include an intercept term. If included the intercept term is

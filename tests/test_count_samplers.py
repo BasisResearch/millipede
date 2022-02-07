@@ -13,8 +13,8 @@ from millipede import (
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-@pytest.mark.parametrize("streaming", [False, True])
-def test_binomial(streaming, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
+@pytest.mark.parametrize("variable_S", [False, True])
+def test_binomial(variable_S, streaming=False, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
@@ -23,8 +23,10 @@ def test_binomial(streaming, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, 
     Y = torch.distributions.Binomial(total_count=TC,
                                      logits=Z + intercept + 0.01 * torch.randn(N)).sample().double()
 
+    S = (1.0, P - 1.0) if variable_S else 1.0
+
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=1.0, tau=0.01, tau_intercept=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, tau=0.01, tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
         if burned:
@@ -48,12 +50,14 @@ def test_binomial(streaming, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, 
     dataframe = pandas.DataFrame(XYTC.data.numpy(), columns=columns)
 
     selector = BinomialLikelihoodVariableSelector(dataframe, 'response', 'total_count',
-                                                  S=1.0, tau=0.01, tau_intercept=1.0e-4,
+                                                  S=S, tau=0.01, tau_intercept=1.0e-4,
                                                   precision='double', device='cpu')
     selector.run(T=T, T_burnin=T_burnin, report_frequency=1100, streaming=streaming, seed=seed)
 
     assert_close(selector.pip.values, pip, atol=1.0e-10)
     assert_close(selector.beta.values, beta, atol=1.0e-10)
+
+    print("[selector.stats]\n", selector.stats)
 
 
 def test_bernoulli(streaming=True, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):

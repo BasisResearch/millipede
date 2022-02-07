@@ -39,7 +39,7 @@ def test_compute_add_prob(P, N, tau=0.47, tau_intercept=0.13, atol=1.0e-6):
     def get_sample(gamma):
         sample = SimpleNamespace(gamma=gamma.bool(), add_prob=zeros(P).double(), _i_prob=zeros(P).double(),
                                  beta_mean=beta, _omega=omega, idx=0, weight=0, _psi0=0.0, _kappa=kappa,
-                                 _kappa_omega=kappa, _Z=Z, beta=beta)
+                                 _kappa_omega=kappa, _Z=Z, beta=beta, _log_h_ratio=sampler.log_h_ratio)
         sample._active = torch.nonzero(sample.gamma).squeeze(-1)
         sample._activeb = torch.cat([sample._active, torch.tensor([P])])
         return sample

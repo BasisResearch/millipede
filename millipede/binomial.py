@@ -39,6 +39,12 @@ class CountLikelihoodSampler(MCMCSampler):
 
         h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
 
+    Alternatively, if :math:`h` is not known a priori we can put a prior on :math:`h`:
+
+    .. math::
+
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
+
     Putting this together, the model specification for the Binomial case is as follows:
 
     .. math::
@@ -88,7 +94,13 @@ class CountLikelihoodSampler(MCMCSampler):
     :param tensor psi0: A N-dimensional `torch.Tensor` of offsets `psi0`. This is a required argument if
         you wish to specify a Negative Binomial model. If the user specifies a float, `psi0` will be expanded
         to a N-dimensional vector internally. Defaults to None.
-    :param float S: The number of covariates to include in the model a priori. Defaults to 5.
+    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
+        variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
+        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
+        covariates in the posterior can vary significantly from prior expectations, since the posterior is in
+        effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
@@ -143,8 +155,12 @@ class CountLikelihoodSampler(MCMCSampler):
 
         if self.N != Y.size(-1):
             raise ValueError("X and Y should be of shape (N, P) and (N,), respectively.")
-        if S >= self.P or S <= 0:
-            raise ValueError("S must satisfy 0 < S < P")
+        if not isinstance(S, tuple):
+            if S >= self.P or S <= 0:
+                raise ValueError("S must satisfy 0 < S < P or must be a tuple.")
+        else:
+            if len(S) != 2 or not isinstance(S[0], float) or not isinstance(S[1], float) or S[0] <= 0.0 or S[1] <= 0.0:
+                raise ValueError("If S is a tuple it must be a tuple of two positive floats (alpha, beta).")
         if tau <= 0.0:
             raise ValueError("tau must be positive.")
         if tau_intercept <= 0.0:
@@ -156,7 +172,12 @@ class CountLikelihoodSampler(MCMCSampler):
         if xi_target <= 0.0 or xi_target >= 1.0:
             raise ValueError("xi_target must be in the interval (0, 1).")
 
-        self.h = S / self.P
+        if not isinstance(S, tuple):
+            self.h = S / self.P
+        else:
+            self.S_alpha, self.S_beta = S
+            self.h = self.S_alpha / (self.S_alpha + self.S_beta)
+
         self.explore = explore / self.P
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
         self.half_log_tau = 0.5 * math.log(tau)
@@ -169,9 +190,11 @@ class CountLikelihoodSampler(MCMCSampler):
         self.omega_mh = omega_mh
         self.uniform_dist = Uniform(0.0, X.new_ones(1)[0])
 
-        s = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = ({}, {}, {:.1f}, {:.1f})"
         if verbose_constructor:
-            print(s.format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, S, explore))
+            s1 = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = "
+            s2 = "({}, {}, {:.1f}, {:.1f})" if not isinstance(S, tuple) else "({}, {}, ({:.1f}, {:.1f}), {:.1f})"
+            S = S if isinstance(S, tuple) else (S,)
+            print((s1 + s2).format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, *S, explore))
 
     def initialize_sample(self, seed=None):
         self.accepted_omega_updates = 0
@@ -209,8 +232,13 @@ class CountLikelihoodSampler(MCMCSampler):
                                  _kappa_omega=_kappa_omega,
                                  _Z=_Z,
                                  _psi0=_psi0,
+                                 _log_h_ratio=self.log_h_ratio,
                                  _active=torch.tensor([], dtype=torch.int64),
                                  _activeb=torch.tensor([self.P], dtype=torch.int64))
+
+        if hasattr(self, "S_alpha"):
+            sample.S_alpha = torch.tensor(self.S_alpha, device=self.device)
+            sample.S_beta = torch.tensor(self.S_beta, device=self.device)
 
         sample = self.sample_beta(sample)  # populate self._L_active
         sample = self._compute_probs(sample)
@@ -270,8 +298,9 @@ class CountLikelihoodSampler(MCMCSampler):
             Zt_active_loo_sq = 0.0  # dummy values since no active covariates
             log_det_ratio_active = torch.tensor(0.0)
 
-        log_odds_inactive = 0.5 * W_k_sq + log_det_ratio_inactive + self.log_h_ratio
-        log_odds_active = 0.5 * (Zt_active.pow(2.0).sum() - Zt_active_loo_sq) + log_det_ratio_active + self.log_h_ratio
+        log_odds_inactive = 0.5 * W_k_sq + log_det_ratio_inactive + sample._log_h_ratio
+        log_odds_active = 0.5 * (Zt_active.pow(2.0).sum() - Zt_active_loo_sq) +\
+            log_det_ratio_active + sample._log_h_ratio
 
         log_odds = self.Xb.new_zeros(self.P)
         log_odds[inactive] = log_odds_inactive
@@ -304,6 +333,8 @@ class CountLikelihoodSampler(MCMCSampler):
             sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=sample.gamma.device)])
             sample = self.sample_beta(sample)
         else:
+            if hasattr(self, 'S_alpha'):
+                sample = self.sample_alpha_beta(sample)
             sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
 
         sample = self._compute_probs(sample)
@@ -485,4 +516,13 @@ class CountLikelihoodSampler(MCMCSampler):
             sample.beta.zero_()
             sample.beta[activeb] = beta_prop
 
+        return sample
+
+    def sample_alpha_beta(self, sample):
+        num_active = sample._active.size(-1)
+        num_inactive = self.P - num_active
+        sample.S_alpha = torch.tensor(self.S_alpha + num_active, device=self.Xb.device)
+        sample.S_beta = torch.tensor(self.S_beta + num_inactive, device=self.Xb.device)
+        h = sample.S_alpha / (sample.S_alpha + sample.S_beta)
+        sample._log_h_ratio = math.log(h) - math.log(1.0 - h)
         return sample

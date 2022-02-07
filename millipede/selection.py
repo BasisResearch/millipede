@@ -12,6 +12,12 @@ from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
 
 
+def populate_alpha_beta_stats(container, stats):
+    for s in ['S_alpha', 'S_beta', 'S_alpha_beta_ratio']:
+        if hasattr(container, s):
+            stats['Mean ' + s] = getattr(container, s)
+
+
 def populate_weight_stats(selector, stats, weights, quantiles=[5.0, 10.0, 20.0, 50.0, 90.0, 95.0]):
     q5, q10, q20, q50, q90, q95 = np.percentile(weights, quantiles).tolist()
     s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
@@ -131,6 +137,12 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     .. math::
 
         h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
+
+    Alternatively, if :math:`h` is not known a priori we can put a prior on :math:`h`:
+
+    .. math::
+
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
 
     Putting this together, the model specification for an isotopric prior (with an intercept
     :math:`\beta_0` included) is as follows:
@@ -255,10 +267,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
-        for s in ['S_alpha', 'S_beta', 'S_alpha_beta_ratio']:
-            if hasattr(self.container, s):
-                self.stats['Mean ' + s] = getattr(self.container, s)
-
+        populate_alpha_beta_stats(self.container, self.stats)
         populate_weight_stats(self, self.stats, self.weights)
 
         if verbosity == 'stdout':
@@ -296,6 +305,12 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
 
         h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
 
+    Alternatively, if :math:`h` is not known a priori we can put a prior on :math:`h`:
+
+    .. math::
+
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
+
     The rest of the model is specified as:
 
     .. math::
@@ -322,9 +337,13 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
         for each data point.
-    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
-        Note that the mean number of covariates in the posterior can vary significantly from S, since
-        the posterior is in effect a compromise between the prior and the observed data.
+    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
+        variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
+        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
+        covariates in the posterior can vary significantly from prior expectations, since the posterior is in
+        effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -388,6 +407,7 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
+        populate_alpha_beta_stats(self.container, self.stats)
         populate_weight_stats(self, self.stats, self.weights)
 
         self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
@@ -451,9 +471,13 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the binary-valued responses.
-    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
-        Note that the mean number of covariates in the posterior can vary significantly from S, since
-        the posterior is in effect a compromise between the prior and the observed data.
+    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
+        variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
+        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
+        covariates in the posterior can vary significantly from prior expectations, since the posterior is in
+        effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -545,9 +569,13 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str psi0_column: The name of the column in `dataframe` that contains the offset
         :math:`\psi_{0, n}` for each data point.
-    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
-        Note that the mean number of covariates in the posterior can vary significantly from S, since
-        the posterior is in effect a compromise between the prior and the observed data.
+    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
+        variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
+        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
+        covariates in the posterior can vary significantly from prior expectations, since the posterior is in
+        effect a compromise between the prior and the observed data.
     :param float tau: Controls the precision of the coefficients in the isotropic prior. Defaults to 0.01.
     :param float tau_intercept: Controls the precision of the intercept in the isotropic prior. Defaults to 1.0e-4.
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
@@ -617,6 +645,7 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
+        populate_alpha_beta_stats(self.container, self.stats)
         populate_weight_stats(self, self.stats, self.weights)
 
         self.stats['nu posterior'] = '{:.3f} +- {:.3f}'.format(self.container.nu, self.container.nu_std)
