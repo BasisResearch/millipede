@@ -36,7 +36,7 @@ def test_containers(include_intercept, P=101, atol=1.0e-7):
     assert_close(c1.conditional_beta_std, c2.conditional_beta_std, atol=atol)
     assert_close(c1.S_alpha, c2.S_alpha, atol=atol)
     assert_close(c1.S_beta, c2.S_beta, atol=atol)
-    assert_close(c1.S_alpha_beta_ratio, c2.S_alpha_beta_ratio, atol=atol)
+    assert_close(c1.h, c2.h, atol=atol)
 
     for p in range(P + int(include_intercept)):
         beta = c1.samples.beta[:, p]

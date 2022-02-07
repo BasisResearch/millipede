@@ -13,7 +13,7 @@ from .util import namespace_to_numpy
 
 
 def populate_alpha_beta_stats(container, stats):
-    for s in ['S_alpha', 'S_beta', 'S_alpha_beta_ratio']:
+    for s in ['S_alpha', 'S_beta', 'h']:
         if hasattr(container, s):
             stats['Mean ' + s] = getattr(container, s)
 
