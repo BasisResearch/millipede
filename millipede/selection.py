@@ -169,8 +169,10 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param float or tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
-        Note that the mean number of covariates in the posterior can vary significantly from prior expectations,
-        since the posterior is in effect a compromise between the prior and the observed data.
+        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
+        covariates in the posterior can vary significantly from prior expectations, since the posterior is in
+        effect a compromise between the prior and the observed data.
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
     :param bool include_intercept: Whether to include an intercept term. If included the intercept term is
