@@ -27,7 +27,7 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
     if include_intercept:
         Y += intercept
 
-    S = 1.0 if not variable_S else (1.0, P - 1.0)
+    S = 1.0 if not variable_S else (0.25, 0.25 * P - 0.25)
 
     samples = []
     sampler = NormalLikelihoodSampler(X, Y, precompute_XX=precompute_XX, prior=prior,
@@ -42,8 +42,15 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
     samples = stack_namespaces(samples)
     weights = samples.weight / samples.weight.sum()
 
+    if variable_S:
+        print("alpha", samples.S_alpha.mean(), samples.S_alpha.std())
+        print("beta", samples.S_beta.mean(), samples.S_beta.std())
+        ratio = samples.S_alpha / (samples.S_alpha + samples.S_beta)
+        b = torch.distributions.Beta(torch.tensor(S[0]), torch.tensor(S[1]))
+        print("prior mean var", b.mean.item(), b.variance.item())
+        print("ratio", ratio.mean(), ratio.std())
+
     pip = np.dot(samples.add_prob.T, weights)
-    print("pip[:4]", pip[:4])
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 

@@ -182,6 +182,10 @@ class NormalLikelihoodSampler(MCMCSampler):
         if self.include_intercept:
             sample._activeb = torch.tensor([self.P], device=self.device, dtype=torch.int64)
 
+        if hasattr(self, "S_alpha"):
+            sample.S_alpha = torch.tensor(self.S_alpha, device=self.device)
+            sample.S_beta = torch.tensor(self.S_beta, device=self.device)
+
         sample = self._compute_probs(sample)
         return sample
 
@@ -346,4 +350,10 @@ class NormalLikelihoodSampler(MCMCSampler):
         return sample
 
     def sample_alpha_beta(self, sample):
+        num_active = sample._active.size(-1)
+        num_inactive = self.P - num_active
+        sample.S_alpha = torch.tensor(self.S_alpha + num_active, device=self.X.device)
+        sample.S_beta = torch.tensor(self.S_beta + num_inactive, device=self.X.device)
+        h = sample.S_alpha / (sample.S_alpha + sample.S_beta)
+        sample._log_h_ratio = math.log(h) - math.log(1.0 - h)
         return sample
