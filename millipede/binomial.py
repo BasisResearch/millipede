@@ -7,7 +7,7 @@ from polyagamma import random_polyagamma
 from torch import cholesky_solve as chosolve
 from torch import dot, einsum, matmul, sigmoid
 from torch import triangular_solve as trisolve
-from torch.distributions import Categorical, Uniform, Beta
+from torch.distributions import Beta, Categorical, Uniform
 from torch.linalg import norm
 from torch.nn.functional import softplus
 
