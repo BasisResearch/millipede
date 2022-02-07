@@ -111,6 +111,6 @@ def test_gprior_compute_add_log_prob(P, precompute_XX, include_intercept, N=5):
         return -0.5 * N * (YY - sampler.c_one_c * ZFZ).log()
 
     def compute_log_factor_ratio(ind1, ind0):
-        return compute_log_factor(ind1) - compute_log_factor(ind0) + sampler.log_h_ratio + sampler.log_one_c_sqrt
+        return compute_log_factor(ind1) - compute_log_factor(ind0) + sampler.log_h_ratio - sampler.log_one_c_sqrt
 
     check_gammas(sampler, include_intercept, P, compute_log_factor_ratio)

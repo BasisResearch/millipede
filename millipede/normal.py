@@ -298,11 +298,11 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.prior == 'gprior':
             log_S_ratio = -torch.log1p(-self.c_one_c * W_k_sq / (self.YY - self.c_one_c * Zt_active_sq))
-            log_odds_inactive = sample._log_h_ratio + self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_inactive = sample._log_h_ratio - self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
 
             log_S_ratio = torch.log(self.YY - self.c_one_c * Zt_active_loo_sq) -\
                 torch.log(self.YY - self.c_one_c * Zt_active_sq)
-            log_odds_active = sample._log_h_ratio + self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_active = sample._log_h_ratio - self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
         elif self.prior == 'isotropic':
             log_S_ratio = -torch.log1p(- W_k_sq / (self.YY - Zt_active_sq))
             log_odds_inactive = sample._log_h_ratio + log_det_inactive + 0.5 * self.N_nu0 * log_S_ratio
