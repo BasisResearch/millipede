@@ -8,11 +8,16 @@ from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-@pytest.mark.parametrize("precompute_XX", [False, True])
-@pytest.mark.parametrize("prior", ["isotropic", "gprior"])
-@pytest.mark.parametrize("include_intercept", [True, False])
-def test_linear_correlated(prior, precompute_XX, include_intercept, N=128, P=16, intercept=2.34,
-                           T=2000, T_burnin=200, report_frequency=1100, seed=1):
+#@pytest.mark.parametrize("precompute_XX", [False, True])
+#@pytest.mark.parametrize("prior", ["isotropic", "gprior"])
+#@pytest.mark.parametrize("include_intercept", [True, False])
+@pytest.mark.parametrize("precompute_XX", [False])
+@pytest.mark.parametrize("prior", ["isotropic"])
+@pytest.mark.parametrize("include_intercept", [True])
+@pytest.mark.parametrize("variable_S", [False, True])
+def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
+                           N=128, P=16, intercept=2.34, T=2000, T_burnin=200, report_frequency=1100, seed=1):
+
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
@@ -22,9 +27,11 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, N=128, P=16,
     if include_intercept:
         Y += intercept
 
+    S = 1.0 if not variable_S else (1.0, P - 1.0)
+
     samples = []
     sampler = NormalLikelihoodSampler(X, Y, precompute_XX=precompute_XX, prior=prior,
-                                      compute_betas=True, S=1.0, nu0=0.0, lambda0=0.0,
+                                      compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                       tau=0.01, c=100.0, include_intercept=include_intercept,
                                       tau_intercept=1.0e-4)
 
@@ -36,6 +43,7 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, N=128, P=16,
     weights = samples.weight / samples.weight.sum()
 
     pip = np.dot(samples.add_prob.T, weights)
+    print("pip[:4]", pip[:4])
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
@@ -53,7 +61,7 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, N=128, P=16,
     selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=100.0,
                                                 precompute_XX=precompute_XX,
                                                 include_intercept=include_intercept, prior=prior,
-                                                S=1.0, nu0=0.0, lambda0=0.0, precision='double')
+                                                S=S, nu0=0.0, lambda0=0.0, precision='double')
 
     selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency, streaming=precompute_XX, seed=seed)
 

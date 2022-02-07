@@ -166,9 +166,11 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
-    :param float S: The expected number of covariates to include in the model a priori. Defaults to 5.
-        Note that the mean number of covariates in the posterior can vary significantly from S, since
-        the posterior is in effect a compromise between the prior and the observed data.
+    :param float or tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
+        variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
+        Note that the mean number of covariates in the posterior can vary significantly from prior expectations,
+        since the posterior is in effect a compromise between the prior and the observed data.
     :param str prior: One of the two supported priors for the coefficients: 'isotropic' or 'gprior'.
         Defaults to 'isotropic'.
     :param bool include_intercept: Whether to include an intercept term. If included the intercept term is

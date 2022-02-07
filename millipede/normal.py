@@ -82,7 +82,8 @@ class NormalLikelihoodSampler(MCMCSampler):
                  tau=0.01, tau_intercept=1.0e-4, c=100.0,
                  nu0=0.0, lambda0=0.0,
                  explore=5, precompute_XX=False,
-                 compute_betas=False, verbose_constructor=True):
+                 compute_betas=False, verbose_constructor=True,
+                 xi_target=0.2):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
@@ -110,8 +111,12 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             self.Pb = self.P
 
-        if S >= self.P or S <= 0:
-            raise ValueError("S must satisfy 0 < S < P")
+        if not isinstance(S, tuple):
+            if S >= self.P or S <= 0:
+                raise ValueError("S must satisfy 0 < S < P or must be a tuple.")
+        else:
+            if len(S) != 2 or not isinstance(S[0], float) or not isinstance(S[1], float) or S[0] <= 0.0 or S[1] <= 0.0:
+                raise ValueError("If S is a tuple it must be a tuple of two positive floats (alpha, beta).")
         if prior == 'gprior' and self.c <= 0.0:
             raise ValueError("c must satisfy c > 0.0")
         if prior == 'isotropic' and self.tau <= 0.0:
@@ -132,28 +137,35 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             self.XX = None
 
-        self.h = S / self.P
-        self.explore = explore / self.P
+        if not isinstance(S, tuple):
+            self.h = S / self.P
+            self.xi = torch.tensor([0.0], device=X.device)
+        else:
+            self.S_alpha, self.S_beta = S
+            self.h = self.S_alpha / (self.S_alpha + self.S_beta)
+            self.xi = torch.tensor([5.0], device=X.device)
+            self.xi_target = xi_target
+
+        self.c_one_c = self.c / (1.0 + self.c)
+        self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
+
+        self.explore = explore / self.P
         self.N_nu0 = self.N + nu0
 
         self.compute_betas = compute_betas
         self.include_intercept = include_intercept
-
-        self.c_one_c = self.c / (1.0 + self.c)
-        self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
-        self.hc_prefactor = self.log_h_ratio - self.log_one_c_sqrt
         self.epsilon = 1.0e-18
 
         if verbose_constructor:
+            s2 = " = ({}, {}, {:.1f}, {:.3f})" if not isinstance(S, tuple) else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f})"
+            S = S if isinstance(S, tuple) else (S,)
             if self.prior == 'isotropic':
-                s = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)" +\
-                    " = ({}, {}, {:.1f}, {:.3f})"
-                print(s.format(self.N, self.P, S, self.tau))
+                s1 = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)"
+                print((s1 + s2).format(self.N, self.P, *S, self.tau))
             else:
-                s = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)" +\
-                    " = ({}, {}, {:.1f}, {:.1f})"
-                print(s.format(self.N, self.P, S, self.c))
+                s1 = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)"
+                print((s1 + s2).format(self.N, self.P, *S, self.c))
 
     def initialize_sample(self, seed=None):
         if seed is not None:
@@ -163,7 +175,7 @@ class NormalLikelihoodSampler(MCMCSampler):
                                  add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
                                  _i_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
                                  _active=torch.tensor([], device=self.device, dtype=torch.int64),
-                                 _idx=0, weight=0)
+                                 _idx=0, _log_h_ratio=self.log_h_ratio, weight=0)
         if self.compute_betas:
             sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
 
@@ -282,17 +294,17 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.prior == 'gprior':
             log_S_ratio = -torch.log1p(-self.c_one_c * W_k_sq / (self.YY - self.c_one_c * Zt_active_sq))
-            log_odds_inactive = self.hc_prefactor + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_inactive = sample._log_h_ratio + self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
 
             log_S_ratio = torch.log(self.YY - self.c_one_c * Zt_active_loo_sq) -\
                 torch.log(self.YY - self.c_one_c * Zt_active_sq)
-            log_odds_active = self.hc_prefactor + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_active = sample._log_h_ratio + self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
         elif self.prior == 'isotropic':
             log_S_ratio = -torch.log1p(- W_k_sq / (self.YY - Zt_active_sq))
-            log_odds_inactive = self.log_h_ratio + log_det_inactive + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_inactive = sample._log_h_ratio + log_det_inactive + 0.5 * self.N_nu0 * log_S_ratio
 
             log_S_ratio = (self.YY - Zt_active_loo_sq).log() - (self.YY - Zt_active_sq).log()
-            log_odds_active = self.log_h_ratio + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_active = sample._log_h_ratio + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
 
         log_odds = self.X.new_zeros(self.P)
         log_odds[inactive] = log_odds_inactive
@@ -302,20 +314,36 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     def _compute_probs(self, sample):
         sample.add_prob = sigmoid(self._compute_add_prob(sample))
+
         gamma = sample.gamma.type_as(sample.add_prob)
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
-        sample._i_prob = (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        i_prob = 0.5 * (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+
+        if hasattr(self, 'S_alpha') and self.t <= self.T_burnin:  # adapt xi
+            self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
+
+        sample._i_prob = torch.cat([self.xi, i_prob])
+
         return sample
 
     def mcmc_move(self, sample):
         self.t += 1
-        sample._idx = Categorical(probs=sample._i_prob).sample()
-        sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
 
-        sample._active = torch.nonzero(sample.gamma).squeeze(-1)
-        sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=self.device)]) \
-            if self.include_intercept else sample._active
+        sample._idx = Categorical(probs=sample._i_prob).sample() - 1
+
+        if sample._idx.item() >= 0:
+            sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
+
+            sample._active = torch.nonzero(sample.gamma).squeeze(-1)
+            sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=self.device)]) \
+                if self.include_intercept else sample._active
+        else:
+            sample = self.sample_alpha_beta(sample)
 
         sample = self._compute_probs(sample)
         sample.weight = sample._i_prob.mean().reciprocal()
+
+        return sample
+
+    def sample_alpha_beta(self, sample):
         return sample
