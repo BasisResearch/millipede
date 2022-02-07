@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel setuptools
-        pip install flake8 isort>=5.0
+        pip install flake8 isort>=5.9
     - name: Lint
       run: |
         make lint
