@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from common import assert_close
 
+from common import assert_close
 from millipede.containers import SimpleSampleContainer, StreamingSampleContainer
 
 

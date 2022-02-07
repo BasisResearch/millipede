@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import torch
 from torch import einsum, matmul, sigmoid
 from torch import triangular_solve as trisolve
-from torch.distributions import Categorical
+from torch.distributions import Beta, Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
@@ -36,7 +36,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     .. math::
 
-        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\;\;\; \beta > 0
 
     Putting this together, the model specification for an isotopric prior (with an intercept
     :math:`\beta_0` included) is as follows:
@@ -70,7 +70,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
-        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
         a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
         covariates in the posterior can vary significantly from prior expectations, since the posterior is in
         effect a compromise between the prior and the observed data.
@@ -88,6 +88,8 @@ class NormalLikelihoodSampler(MCMCSampler):
         that setting this to True may result in out-of-memory errors for sufficiently large covariate matrices.
     :param bool verbose_constructor: Whether the class constructor should print some information to
         stdout upon initialization.
+    :param float xi_target: This hyperparameter controls how often :math:`h` MCMC updates are made if :math:`h`
+        is a latent variable. Defaults to 0.2.
     """
     def __init__(self, X, Y, S=5,
                  prior="isotropic", include_intercept=True,
@@ -139,6 +141,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             raise ValueError("nu0 must satisfy nu0 >= 0.0")
         if lambda0 < 0.0:
             raise ValueError("lambda0 must satisfy lambda0 >= 0.0")
+        if xi_target <= 0.0 or xi_target >= 1.0:
+            raise ValueError("xi_target must be in the interval (0, 1).")
 
         self.YY = Y.pow(2.0).sum() + nu0 * lambda0
         self.Z = einsum("np,n->p", self.X, Y)
@@ -366,6 +370,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         num_inactive = self.P - num_active
         sample.S_alpha = torch.tensor(self.S_alpha + num_active, device=self.X.device)
         sample.S_beta = torch.tensor(self.S_beta + num_inactive, device=self.X.device)
-        h = sample.S_alpha / (sample.S_alpha + sample.S_beta)
+        h = Beta(sample.S_alpha, sample.S_beta).sample().item()
         sample._log_h_ratio = math.log(h) - math.log(1.0 - h)
         return sample

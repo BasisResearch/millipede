@@ -142,7 +142,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
 
     .. math::
 
-        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\;\;\; \beta > 0
 
     Putting this together, the model specification for an isotopric prior (with an intercept
     :math:`\beta_0` included) is as follows:
@@ -181,7 +181,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param float or tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
-        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
         a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
         covariates in the posterior can vary significantly from prior expectations, since the posterior is in
         effect a compromise between the prior and the observed data.
@@ -203,6 +203,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         should be pre-computed. Defaults to False. Note that setting this to True may result in out-of-memory errors
         for sufficiently large covariate matrices :math:`X`.
         However, if sufficient memory is available, setting precompute_XX to True should be faster.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes :math:`h` updates
+        if :math:`h` is a latent variable. Defaults to 0.20. For expert users only.
     """
     def __init__(self, dataframe, response_column,
                  S=5, prior="isotropic",
@@ -211,7 +213,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                  c=100.0,
                  nu0=0.0, lambda0=0.0,
                  precision="double", device="cpu",
-                 explore=5, precompute_XX=False):
+                 explore=5, precompute_XX=False,
+                 xi_target=0.2):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -239,7 +242,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                                tau=tau, tau_intercept=tau_intercept,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
-                                               verbose_constructor=False)
+                                               verbose_constructor=False,
+                                               xi_target=xi_target)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
@@ -309,7 +313,7 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
 
     .. math::
 
-        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\; \beta > 0
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\;\;\; \beta > 0
 
     The rest of the model is specified as:
 
@@ -340,7 +344,7 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
-        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
         a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
         covariates in the posterior can vary significantly from prior expectations, since the posterior is in
         effect a compromise between the prior and the observed data.
@@ -351,8 +355,8 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
-    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
-        Defaults to 0.25. For expert users only.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
+        or :math:`h` updates if the latter is a latent variable. Defaults to 0.25. For expert users only.
     """
     def __init__(self, dataframe, response_column, total_count_column,
                  S=5, tau=0.01, tau_intercept=1.0e-4,
@@ -450,6 +454,12 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
 
         h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
 
+    Alternatively, if :math:`h` is not known a priori we can put a prior on :math:`h`:
+
+    .. math::
+
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\;\;\; \beta > 0
+
     The rest of the model is specified as:
 
     .. math::
@@ -474,7 +484,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
-        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
         a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
         covariates in the posterior can vary significantly from prior expectations, since the posterior is in
         effect a compromise between the prior and the observed data.
@@ -485,8 +495,8 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
-    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
-        Defaults to 0.25. For expert users only.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
+        or :math:`h` updates if the latter is a latent variable. Defaults to 0.25. For expert users only.
     """
     def __init__(self, dataframe, response_column,
                  S=5, tau=0.01, tau_intercept=1.0e-4,
@@ -533,6 +543,12 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
 
         h \in [0, 1] \qquad \rm{with} \qquad S \equiv hP
 
+    Alternatively, if :math:`h` is not known a priori we can put a prior on :math:`h`:
+
+    .. math::
+
+        h \sim {\rm Beta}(\alpha, \beta) \qquad \rm{with} \qquad \alpha > 0 \;\;\;\; \beta > 0
+
     The full model specification for the Negative Binomial case is as follows:
 
     .. math::
@@ -572,7 +588,7 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
-        Note that for a given choice of `alpha` and `beta` the expected num of covariates to include in the model
+        Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
         a priori is given by :math:`\frac{\alpha}{\alpha + \beta} \times P`.  Also note that the mean number of
         covariates in the posterior can vary significantly from prior expectations, since the posterior is in
         effect a compromise between the prior and the observed data.
@@ -585,8 +601,8 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
         Defaults to 0.05. For expert users only.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
-    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates.
-        Defaults to 0.25. For expert users only.
+    :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
+        or :math:`h` updates if the latter is a latent variable. Defaults to 0.25. For expert users only.
     :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`.
         Defaults to 5.0. For expert users only.
     """

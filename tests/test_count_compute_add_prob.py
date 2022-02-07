@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 import torch
-from common import assert_close
 from torch import zeros
 
+from common import assert_close
 from millipede import CountLikelihoodSampler
 
 
