@@ -175,8 +175,8 @@ class CountLikelihoodSampler(MCMCSampler):
         if not isinstance(S, tuple):
             self.h = S / self.P
         else:
-            self.S_alpha, self.S_beta = S
-            self.h = self.S_alpha / (self.S_alpha + self.S_beta)
+            self.h_alpha, self.h_beta = S
+            self.h = self.h_alpha / (self.h_alpha + self.h_beta)
 
         self.explore = explore / self.P
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
@@ -236,9 +236,9 @@ class CountLikelihoodSampler(MCMCSampler):
                                  _active=torch.tensor([], dtype=torch.int64),
                                  _activeb=torch.tensor([self.P], dtype=torch.int64))
 
-        if hasattr(self, "S_alpha"):
-            sample.S_alpha = torch.tensor(self.S_alpha, device=self.device)
-            sample.S_beta = torch.tensor(self.S_beta, device=self.device)
+        if hasattr(self, "h_alpha"):
+            sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
+            sample.h_beta = torch.tensor(self.h_beta, device=self.device)
 
         sample = self.sample_beta(sample)  # populate self._L_active
         sample = self._compute_probs(sample)
@@ -333,7 +333,7 @@ class CountLikelihoodSampler(MCMCSampler):
             sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=sample.gamma.device)])
             sample = self.sample_beta(sample)
         else:
-            if hasattr(self, 'S_alpha'):
+            if hasattr(self, 'h_alpha'):
                 sample = self.sample_alpha_beta(sample)
             sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
 
@@ -521,8 +521,8 @@ class CountLikelihoodSampler(MCMCSampler):
     def sample_alpha_beta(self, sample):
         num_active = sample._active.size(-1)
         num_inactive = self.P - num_active
-        sample.S_alpha = torch.tensor(self.S_alpha + num_active, device=self.Xb.device)
-        sample.S_beta = torch.tensor(self.S_beta + num_inactive, device=self.Xb.device)
-        h = Beta(sample.S_alpha, sample.S_beta).sample().item()
+        sample.h_alpha = torch.tensor(self.h_alpha + num_active, device=self.Xb.device)
+        sample.h_beta = torch.tensor(self.h_beta + num_inactive, device=self.Xb.device)
+        h = Beta(sample.h_alpha, sample.h_beta).sample().item()
         sample._log_h_ratio = math.log(h) - math.log(1.0 - h)
         return sample

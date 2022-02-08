@@ -24,8 +24,8 @@ def test_containers(include_intercept, P=101, atol=1.0e-7):
                                  beta=beta,
                                  add_prob=np.random.rand(P),
                                  log_nu=np.random.randn(),
-                                 S_alpha=np.random.rand(),
-                                 S_beta=np.random.rand(),
+                                 h_alpha=np.random.rand(),
+                                 h_beta=np.random.rand(),
                                  weight=np.random.rand())
         c1(sample)
         c2(sample)
@@ -34,8 +34,8 @@ def test_containers(include_intercept, P=101, atol=1.0e-7):
     assert_close(c1.beta, c2.beta, atol=atol)
     assert_close(c1.conditional_beta, c2.conditional_beta, atol=atol)
     assert_close(c1.conditional_beta_std, c2.conditional_beta_std, atol=atol)
-    assert_close(c1.S_alpha, c2.S_alpha, atol=atol)
-    assert_close(c1.S_beta, c2.S_beta, atol=atol)
+    assert_close(c1.h_alpha, c2.h_alpha, atol=atol)
+    assert_close(c1.h_beta, c2.h_beta, atol=atol)
     assert_close(c1.h, c2.h, atol=atol)
 
     for p in range(P + int(include_intercept)):

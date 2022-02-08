@@ -56,16 +56,16 @@ class SimpleSampleContainer(object):
         return np.sqrt(np.dot(np.exp(2.0 * self.samples.log_nu), self.weights) - self.nu ** 2).item()
 
     @cached_property
-    def S_alpha(self):
-        return np.dot(self.samples.S_alpha, self.weights).item()
+    def h_alpha(self):
+        return np.dot(self.samples.h_alpha, self.weights).item()
 
     @cached_property
-    def S_beta(self):
-        return np.dot(self.samples.S_beta, self.weights).item()
+    def h_beta(self):
+        return np.dot(self.samples.h_beta, self.weights).item()
 
     @cached_property
     def h(self):
-        return np.dot(self.samples.S_alpha / (self.samples.S_alpha + self.samples.S_beta), self.weights).item()
+        return np.dot(self.samples.h_alpha / (self.samples.h_alpha + self.samples.h_beta), self.weights).item()
 
     @cached_property
     def conditional_beta(self):
@@ -109,10 +109,10 @@ class StreamingSampleContainer(object):
                 self._log_nu_sq = np.square(sample.log_nu) * sample.weight
                 self._nu = np.exp(sample.log_nu) * sample.weight
                 self._nu_sq = np.exp(2.0 * sample.log_nu) * sample.weight
-            if hasattr(sample, 'S_alpha'):
-                self._S_alpha = sample.S_alpha * sample.weight
-                self._S_beta = sample.S_beta * sample.weight
-                self._h = (sample.S_alpha / (sample.S_alpha + sample.S_beta)) * sample.weight
+            if hasattr(sample, 'h_alpha'):
+                self._h_alpha = sample.h_alpha * sample.weight
+                self._h_beta = sample.h_beta * sample.weight
+                self._h = (sample.h_alpha / (sample.h_alpha + sample.h_beta)) * sample.weight
         else:
             factor = 1.0 - 1.0 / self._num_samples
             self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
@@ -125,11 +125,11 @@ class StreamingSampleContainer(object):
                     (np.square(sample.log_nu) * sample.weight) / self._num_samples
                 self._nu = factor * self._nu + (np.exp(sample.log_nu) * sample.weight) / self._num_samples
                 self._nu_sq = factor * self._nu_sq + (np.exp(2.0 * sample.log_nu) * sample.weight) / self._num_samples
-            if hasattr(sample, 'S_alpha'):
-                self._S_alpha = factor * self._S_alpha + (sample.S_alpha * sample.weight) / self._num_samples
-                self._S_beta = factor * self._S_beta + (sample.S_beta * sample.weight) / self._num_samples
-                S_alpha_beta = sample.S_alpha / (sample.S_alpha + sample.S_beta)
-                self._h = factor * self._h + S_alpha_beta * sample.weight / self._num_samples
+            if hasattr(sample, 'h_alpha'):
+                self._h_alpha = factor * self._h_alpha + (sample.h_alpha * sample.weight) / self._num_samples
+                self._h_beta = factor * self._h_beta + (sample.h_beta * sample.weight) / self._num_samples
+                h_alpha_beta = sample.h_alpha / (sample.h_alpha + sample.h_beta)
+                self._h = factor * self._h + h_alpha_beta * sample.weight / self._num_samples
 
     @cached_property
     def _normalizer(self):
@@ -164,12 +164,12 @@ class StreamingSampleContainer(object):
         return np.sqrt(self._normalizer * self._nu_sq - self.nu ** 2).item()
 
     @cached_property
-    def S_alpha(self):
-        return self._normalizer * self._S_alpha
+    def h_alpha(self):
+        return self._normalizer * self._h_alpha
 
     @cached_property
-    def S_beta(self):
-        return self._normalizer * self._S_beta
+    def h_beta(self):
+        return self._normalizer * self._h_beta
 
     @cached_property
     def h(self):

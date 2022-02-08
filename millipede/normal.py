@@ -157,8 +157,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.h = S / self.P
             self.xi = torch.tensor([0.0], device=X.device)
         else:
-            self.S_alpha, self.S_beta = S
-            self.h = self.S_alpha / (self.S_alpha + self.S_beta)
+            self.h_alpha, self.h_beta = S
+            self.h = self.h_alpha / (self.h_alpha + self.h_beta)
             self.xi = torch.tensor([5.0], device=X.device)
             self.xi_target = xi_target
 
@@ -198,9 +198,9 @@ class NormalLikelihoodSampler(MCMCSampler):
         if self.include_intercept:
             sample._activeb = torch.tensor([self.P], device=self.device, dtype=torch.int64)
 
-        if hasattr(self, "S_alpha"):
-            sample.S_alpha = torch.tensor(self.S_alpha, device=self.device)
-            sample.S_beta = torch.tensor(self.S_beta, device=self.device)
+        if hasattr(self, "h_alpha"):
+            sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
+            sample.h_beta = torch.tensor(self.h_beta, device=self.device)
 
         sample = self._compute_probs(sample)
         return sample
@@ -339,7 +339,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
         i_prob = 0.5 * (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
 
-        if hasattr(self, 'S_alpha') and self.t <= self.T_burnin:  # adapt xi
+        if hasattr(self, 'h_alpha') and self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
 
         sample._i_prob = torch.cat([self.xi, i_prob])
@@ -368,8 +368,8 @@ class NormalLikelihoodSampler(MCMCSampler):
     def sample_alpha_beta(self, sample):
         num_active = sample._active.size(-1)
         num_inactive = self.P - num_active
-        sample.S_alpha = torch.tensor(self.S_alpha + num_active, device=self.X.device)
-        sample.S_beta = torch.tensor(self.S_beta + num_inactive, device=self.X.device)
-        h = Beta(sample.S_alpha, sample.S_beta).sample().item()
+        sample.h_alpha = torch.tensor(self.h_alpha + num_active, device=self.X.device)
+        sample.h_beta = torch.tensor(self.h_beta + num_inactive, device=self.X.device)
+        h = Beta(sample.h_alpha, sample.h_beta).sample().item()
         sample._log_h_ratio = math.log(h) - math.log(1.0 - h)
         return sample
