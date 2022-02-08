@@ -67,7 +67,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     :param tensor X: A N x P `torch.Tensor` of covariates.
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
-    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model

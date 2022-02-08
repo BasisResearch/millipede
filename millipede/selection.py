@@ -178,7 +178,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
-    :param float or tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -341,7 +341,7 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
         for each data point.
-    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -481,7 +481,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
         encodes a single data point. All columns apart from the response column are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the binary-valued responses.
-    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -585,7 +585,7 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str psi0_column: The name of the column in `dataframe` that contains the offset
         :math:`\psi_{0, n}` for each data point.
-    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model

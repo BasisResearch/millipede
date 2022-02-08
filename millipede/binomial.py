@@ -94,7 +94,7 @@ class CountLikelihoodSampler(MCMCSampler):
     :param tensor psi0: A N-dimensional `torch.Tensor` of offsets `psi0`. This is a required argument if
         you wish to specify a Negative Binomial model. If the user specifies a float, `psi0` will be expanded
         to a N-dimensional vector internally. Defaults to None.
-    :param float S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
