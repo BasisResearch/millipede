@@ -8,7 +8,12 @@ from torch.distributions import Beta, Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
-from .util import get_loo_inverses, leave_one_out, leave_one_out_off_diagonal, safe_cholesky
+from .util import (
+    get_loo_inverses,
+    leave_one_out,
+    leave_one_out_off_diagonal,
+    safe_cholesky,
+)
 
 
 class NormalLikelihoodSampler(MCMCSampler):

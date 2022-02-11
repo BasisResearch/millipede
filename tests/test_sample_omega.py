@@ -2,9 +2,9 @@ import math
 
 import pytest
 import torch
+from common import assert_close
 from polyagamma import polyagamma_pdf
 
-from common import assert_close
 from millipede import CountLikelihoodSampler
 
 
