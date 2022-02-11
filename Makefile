@@ -3,7 +3,7 @@ install: FORCE
 
 lint: FORCE
 	flake8
-	#isort -v --check .
+	isort --check .
 
 format: FORCE
 	isort .
