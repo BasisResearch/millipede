@@ -57,6 +57,14 @@ def leave_one_out(x):
     return x.expand(N, N)[mask].reshape(N, N - 1)
 
 
+def leave_one_out_off_diagonal(x):
+    N = x.size(-1)
+    N_arange = torch.arange(N, device=x.device)
+    mask = N_arange.expand(N, N, N) != N_arange.unsqueeze(-1).unsqueeze(-1)
+    mask = ~mask & mask.transpose(dim0=-1, dim1=-2)
+    return x.expand(N, N, N)[mask].reshape(N, N - 1)
+
+
 def namespace_to_numpy(namespace, filter_sites=True, keep_sites=[]):
     attributes = list(namespace.__dict__.keys())
     d = {}

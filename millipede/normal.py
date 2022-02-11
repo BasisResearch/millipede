@@ -8,7 +8,7 @@ from torch.distributions import Beta, Categorical
 from torch.linalg import norm
 
 from .sampler import MCMCSampler
-from .util import get_loo_inverses, leave_one_out, safe_cholesky
+from .util import get_loo_inverses, leave_one_out, leave_one_out_off_diagonal, safe_cholesky
 
 
 class NormalLikelihoodSampler(MCMCSampler):
@@ -277,7 +277,6 @@ class NormalLikelihoodSampler(MCMCSampler):
             else:
                 active_loob = active_loo
 
-            X_active_loo = self.X[:, active_loob].permute(1, 2, 0)  # I I-1 N
             Z_active_loo = self.Z[active_loob]
 
             F = torch.cholesky_inverse(L_active, upper=False)
@@ -289,8 +288,9 @@ class NormalLikelihoodSampler(MCMCSampler):
             Zt_active_loo_sq = einsum("ij,ij->i", Zt_active_loo, Z_active_loo)
 
             if self.prior == 'isotropic':
-                X_active = self.X[:, active]
-                X_I_X_k = matmul(X_active_loo, X_active.t().unsqueeze(-1))
+                X_I_X_k = leave_one_out_off_diagonal(XX_active).unsqueeze(-1)
+                X_I_X_k = X_I_X_k if not self.include_intercept else X_I_X_k[:-1]
+
                 F_X_I_X_k = matmul(F_loo, X_I_X_k).squeeze(-1)
                 XXFXX = einsum("ij,ij->i", X_I_X_k.squeeze(-1), F_X_I_X_k)
                 XX_active_diag = XX_active.diag() if not self.include_intercept else XX_active.diag()[:-1]
