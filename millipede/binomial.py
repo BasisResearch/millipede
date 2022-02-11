@@ -463,16 +463,16 @@ class CountLikelihoodSampler(MCMCSampler):
             LZ = trisolve(Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)
             logdet = L.diag().log().sum() - L.size(-1) * self.half_log_tau
 
-            return 0.5 * norm(LZ, dim=0).pow(2.0) - logdet, L
+            return 0.5 * norm(LZ, dim=0).pow(2.0) - logdet, L, precision
 
-        log_target_prop, L_prop = compute_log_target(omega_prop, Z_prop)
+        log_target_prop, L_prop, precision_prop = compute_log_target(omega_prop, Z_prop)
         beta_mean_prop = chosolve(Z_prop[activeb].unsqueeze(-1), L_prop).squeeze(-1)
         beta_prop = beta_mean_prop + \
             trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
                      L_prop, upper=False)[0].squeeze(-1)
 
         psi_prop = torch.mv(Xb_active, beta_mean_prop)
-        log_target_curr, _ = compute_log_target(sample._omega, sample._Z)
+        log_target_curr, _, _ = compute_log_target(sample._omega, sample._Z)
 
         accept1 = log_target_prop - log_target_curr \
                   + (torch.lgamma(T_prop) - torch.lgamma(nu_prop)).sum() \
@@ -513,6 +513,7 @@ class CountLikelihoodSampler(MCMCSampler):
             sample._omega = omega_prop
             sample._psi = psi_prop
             self._L_active = L_prop
+            self._precision = precision_prop
             sample._kappa = kappa_prop
             sample._psi0 = psi0_prop
             sample._kappa_omega = kappa_omega_prop
