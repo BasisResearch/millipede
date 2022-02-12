@@ -176,8 +176,12 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     where :math:`c > 0` is a user-specified hyperparameter.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+        encodes a single data point. All columns apart from the response column (and the columns in `assumed_columns`
+        if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
+    :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
+        are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
+        as they are always included in the model.
     :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
@@ -207,6 +211,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         if :math:`h` is a latent variable. Defaults to 0.20. For expert users only.
     """
     def __init__(self, dataframe, response_column,
+                 assumed_columns=[],
                  S=5, prior="isotropic",
                  include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4,
@@ -222,22 +227,31 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
             raise ValueError("device must be one of `cpu` or `gpu`")
         if response_column not in dataframe.columns:
             raise ValueError("response_column must be a valid column in the dataframe.")
+        if not isinstance(assumed_columns, list) or any([c not in dataframe.columns for c in assumed_columns]):
+            raise ValueError("assumed_columns must be a list of string names of columns in the dataframe.")
 
-        X, Y = dataframe.drop(response_column, axis=1), dataframe[response_column]
+        X, Y = dataframe.drop([response_column] + assumed_columns, axis=1), dataframe[response_column]
+        X_assumed = None if len(assumed_columns) == 0 else dataframe[assumed_columns]
+
         self.X_columns = X.columns.tolist()
+        self.assumed_columns = assumed_columns
+        self.include_intercept = include_intercept
 
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).float()
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).double()
 
         if device == 'cpu':
             X, Y = X.cpu(), Y.cpu()
+            X_assumed = None if X_assumed is None else X_assumed.cpu()
         elif device == 'gpu':
             X, Y = X.cuda(), Y.cuda()
+            X_assumed = None if X_assumed is None else X_assumed.cuda()
 
-        self.include_intercept = include_intercept
-        self.sampler = NormalLikelihoodSampler(X, Y, S=S, c=c, explore=explore,
+        self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior,
                                                tau=tau, tau_intercept=tau_intercept,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
@@ -250,23 +264,16 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                     streaming=streaming, seed=seed)
 
         self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
+        column_names = self.X_columns + self.assumed_columns
         if self.include_intercept:
-            self.beta = pd.Series(self.container.beta, index=self.X_columns + ["intercept"], name="Coefficient")
-            self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns + ["intercept"],
-                                      name="Coefficient StdDev")
-            self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns + ["intercept"],
-                                              name="Conditional Coefficient")
-            self.conditional_beta_std = pd.Series(self.container.conditional_beta_std,
-                                                  index=self.X_columns + ["intercept"],
-                                                  name="Conditional Coefficient StdDev")
-        else:
-            self.beta = pd.Series(self.container.beta, index=self.X_columns, name="Coefficient")
-            self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns, name="Coefficient StdDev")
-            self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns,
-                                              name="Conditional Coefficient")
-            self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=self.X_columns,
-                                                  name="Conditional Coefficient StdDev")
+            column_names += ['intercept']
 
+        self.beta = pd.Series(self.container.beta, index=column_names, name="Coefficient")
+        self.beta_std = pd.Series(self.container.beta_std, index=column_names, name="Coefficient StdDev")
+        self.conditional_beta = pd.Series(self.container.conditional_beta, index=column_names,
+                                          name="Conditional Coefficient")
+        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=column_names,
+                                              name="Conditional Coefficient StdDev")
         self.summary = pd.concat([self.pip, self.beta, self.beta_std,
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 

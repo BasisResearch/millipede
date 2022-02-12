@@ -162,12 +162,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.YY = Y.pow(2.0).sum() + nu0 * lambda0
         self.Z = einsum("np,n->p", self.X, Y)
 
-        if precompute_XX:
-            self.XX = self.X.t() @ self.X
-            self.XX_diag = self.XX.diagonal()
-        else:
-            self.XX = None
-
         if not isinstance(S, tuple):
             self.h = S / self.P
             self.xi = torch.tensor([0.0], device=self.device)
@@ -190,13 +184,20 @@ class NormalLikelihoodSampler(MCMCSampler):
         if include_intercept and X_assumed is None:
             self.assumed_covariates = torch.tensor([self.P], device=self.device, dtype=torch.int64)
         elif include_intercept and X_assumed is not None:
-            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1) + 1,  device=self.device, dtype=torch.int64)
+            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1) + 1,
+                                                   device=self.device, dtype=torch.int64)
         elif not include_intercept and X_assumed is not None:
-            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1),  device=self.device, dtype=torch.int64)
+            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1),
+                                                   device=self.device, dtype=torch.int64)
         else:
-            self.assumed_covariates = None  # torch.tensor([], device=self.device, dtype=torch.int64)
+            self.assumed_covariates = None
 
-        self.Ptot = self.P if self.assumed_covariates is None else self.P + self.assumed_covariates.size(-1)
+        if precompute_XX:
+            self.XX = self.X.t() @ self.X
+            self.XX_diag = self.XX.diagonal()
+        else:
+            self.XX = None
+
         self.Pa = 0 if self.assumed_covariates is None else self.assumed_covariates.size(-1)
         self.epsilon = 1.0e-18
 
@@ -282,13 +283,13 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.compute_betas and (num_active > 0 or self.Pa > 0):
             beta_active = trisolve(Zt_active.unsqueeze(-1), L_active.t(), upper=True)[0].squeeze(-1)
-            sample.beta = self.X.new_zeros(self.Ptot)
+            sample.beta = self.X.new_zeros(self.P + self.Pa)
             if self.prior == 'gprior':
                 sample.beta[activeb] = self.c_one_c * beta_active
             else:
                 sample.beta[activeb] = beta_active
         elif self.compute_betas and num_active == 0:
-            sample.beta = self.X.new_zeros(self.Ptot)
+            sample.beta = self.X.new_zeros(self.P + self.Pa)
 
         if num_active > 1:
             active_loo = leave_one_out(active)  # I I-1
@@ -324,21 +325,22 @@ class NormalLikelihoodSampler(MCMCSampler):
                 Zt_active_loo_sq = 0.0
                 if self.prior == 'isotropic':
                     log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
-            elif self.include_intercept and self.Pa == 1:
-                Zt_active_loo_sq = norm(self.Z[self.P]).pow(2.0) / (self.tau_intercept + float(self.N))
-                if self.prior == 'isotropic':
-                    G_inv = norm(self.X[:, active], dim=0).pow(2.0) + self.tau \
-                        - self.X[:, active].sum().pow(2.0) / (self.tau_intercept + float(self.N))
-                    log_det_active = -0.5 * G_inv.log() + 0.5 * math.log(self.tau)
             else:
-                XX_assumed = self.X[:, self.assumed_covariates].t() @ self.X[:, self.assumed_covariates]
+                if self.XX is None:
+                    XX_assumed = self.X[:, self.assumed_covariates].t() @ self.X[:, self.assumed_covariates]
+                else:
+                    XX_assumed = self.XX[self.assumed_covariates][:, self.assumed_covariates]
                 if self.prior == "isotropic":
                     XX_assumed.diagonal(dim1=-2, dim2=-1).add_(self.tau)
                     if self.include_intercept:
                         XX_assumed[-1, -1].add_(self.tau_intercept - self.tau)
                 L_assumed = safe_cholesky(XX_assumed)
-                Zt_active_loo = trisolve(self.Z[self.assumed_covariates].unsqueeze(-1), L_assumed, upper=False)[0].squeeze(-1)
+                Zt_active_loo = trisolve(self.Z[self.assumed_covariates].unsqueeze(-1),
+                                         L_assumed, upper=False)[0].squeeze(-1)
                 Zt_active_loo_sq = norm(Zt_active_loo, dim=0).pow(2.0)
+                if self.prior == "isotropic":
+                    log_det_active = L_assumed.diagonal().log().sum() - L_active.diagonal().log().sum()
+                    log_det_active += 0.5 * math.log(self.tau)
 
         elif num_active == 0:
             Zt_active_loo_sq = 0.0

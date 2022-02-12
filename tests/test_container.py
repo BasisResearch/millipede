@@ -8,8 +8,8 @@ from common import assert_close
 from millipede.containers import SimpleSampleContainer, StreamingSampleContainer
 
 
-@pytest.mark.parametrize("include_intercept", [True, False])
-def test_containers(include_intercept, P=101, atol=1.0e-7):
+@pytest.mark.parametrize("P_assumed", [0, 1, 3])
+def test_containers(P_assumed, P=101, atol=1.0e-7):
     c1 = SimpleSampleContainer()
     c2 = StreamingSampleContainer()
 
@@ -17,8 +17,8 @@ def test_containers(include_intercept, P=101, atol=1.0e-7):
         gamma = np.random.binomial(1, 0.5 * np.ones(P))
         beta = np.random.randn(P)
         beta = beta * np.array(gamma, dtype=beta.dtype)
-        if include_intercept:
-            beta = np.concatenate([beta, np.random.rand(1)])
+        if P_assumed > 0:
+            beta = np.concatenate([beta, np.random.randn(P_assumed)])
 
         sample = SimpleNamespace(gamma=gamma,
                                  beta=beta,
@@ -38,7 +38,7 @@ def test_containers(include_intercept, P=101, atol=1.0e-7):
     assert_close(c1.h_beta, c2.h_beta, atol=atol)
     assert_close(c1.h, c2.h, atol=atol)
 
-    for p in range(P + int(include_intercept)):
+    for p in range(P + P_assumed):
         beta = c1.samples.beta[:, p]
         nz = np.nonzero(beta)[0]
         beta = beta[nz]

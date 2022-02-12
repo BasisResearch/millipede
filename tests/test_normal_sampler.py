@@ -8,17 +8,14 @@ from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-#@pytest.mark.parametrize("precompute_XX", [False, True])
-#@pytest.mark.parametrize("prior", ["isotropic", "gprior"])
-#@pytest.mark.parametrize("include_intercept", [True, False])
-#@pytest.mark.parametrize("variable_S", [False, True])
-@pytest.mark.parametrize("precompute_XX", [False])
-@pytest.mark.parametrize("prior", ["isotropic", "gprior"])
-@pytest.mark.parametrize("include_intercept", [True])
-@pytest.mark.parametrize("variable_S", [False])
-@pytest.mark.parametrize("X_assumed", [True, False])
-def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S, X_assumed,
+@pytest.mark.parametrize("precompute_XX", [False, True])
+@pytest.mark.parametrize("prior", ["gprior", "isotropic"])
+@pytest.mark.parametrize("include_intercept", [True, False])
+@pytest.mark.parametrize("variable_S_X_assumed", [(False, False), (True, True)])
+def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S_X_assumed,
                            N=128, P=16, intercept=2.34, T=2000, T_burnin=200, report_frequency=1100, seed=1):
+
+    variable_S, X_assumed = variable_S_X_assumed
 
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
@@ -30,6 +27,8 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S, 
         Y += intercept
 
     X_assumed = torch.randn(N, 2).double() if X_assumed else None
+    if X_assumed is not None:
+        Y += 0.5 * X_assumed[:, -1]
 
     S = 1.0 if not variable_S else (0.25, 0.25 * P - 0.25)
 
@@ -51,7 +50,6 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S, 
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
     beta = np.dot(np.transpose(samples.beta), weights)
-    print("beta", X_assumed is None, beta.shape, beta)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
 
     if include_intercept:
@@ -60,15 +58,21 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S, 
     if X_assumed is None:
         assert_close(beta[2:P], np.zeros(P - 2), atol=0.02)
     else:
-        assert_close(beta[2:P+2], np.zeros(P), atol=0.02)
+        assert_close(beta[2:P + 2], np.concatenate([np.zeros(P - 1), np.array([0.5])]), atol=0.02)
 
-    return
-
-    XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
     columns = ['feat{}'.format(c) for c in range(P)] + ['response']
+    XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
+    if X_assumed is None:
+        assumed_columns = []
+    else:
+        XY = torch.cat([XY, X_assumed], axis=-1)
+        assumed_columns = ['afeat0', 'afeat1']
+        columns += assumed_columns
+
     dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
 
-    selector = NormalLikelihoodVariableSelector(dataframe, 'response', tau=0.01, c=100.0,
+    selector = NormalLikelihoodVariableSelector(dataframe, 'response', assumed_columns=assumed_columns,
+                                                tau=0.01, c=100.0,
                                                 precompute_XX=precompute_XX,
                                                 include_intercept=include_intercept, prior=prior,
                                                 S=S, nu0=0.0, lambda0=0.0, precision='double')
@@ -84,7 +88,10 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S, 
     assert_close(selector.beta.values[:2], np.array([0.5, 0.5]), atol=0.2)
     if include_intercept:
         assert_close(selector.beta.values[-1].item(), intercept, atol=0.1)
-    assert_close(selector.beta.values[2:P], np.zeros(P - 2), atol=0.05)
+    if X_assumed is None:
+        assert_close(selector.beta.values[2:P], np.zeros(P - 2), atol=0.02)
+    else:
+        assert_close(selector.beta.values[2:P + 2], np.concatenate([np.zeros(P - 1), np.array([0.5])]), atol=0.02)
 
     assert_close(selector.conditional_beta.values[:2], np.array([1.0, 1.0]), atol=0.2)
     if include_intercept:

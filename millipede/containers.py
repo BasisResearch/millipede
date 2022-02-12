@@ -70,15 +70,15 @@ class SimpleSampleContainer(object):
     @cached_property
     def conditional_beta(self):
         divisor = np.dot(self.samples.gamma.T, self.weights)
-        if self.beta.shape != divisor.shape:
-            divisor = np.concatenate([divisor, [1.0]])
+        delta = self.beta.shape[0] - divisor.shape[0]
+        divisor = np.concatenate([divisor, delta * [1.0]]) if delta > 0 else divisor
         return np.true_divide(self.beta, divisor, where=divisor != 0, out=np.zeros(self.beta.shape))
 
     @cached_property
     def conditional_beta_std(self):
         divisor = np.dot(self.samples.gamma.T, self.weights)
-        if self.beta.shape != divisor.shape:
-            divisor = np.concatenate([divisor, [1.0]])
+        delta = self.beta.shape[0] - divisor.shape[0]
+        divisor = np.concatenate([divisor, delta * [1.0]]) if delta > 0 else divisor
         beta_sq = np.dot(np.square(self.samples.beta.T), self.weights)
         beta_sq = np.true_divide(beta_sq, divisor, where=divisor != 0, out=np.zeros(self.beta.shape))
         return np.sqrt(np.clip(beta_sq - np.square(self.conditional_beta), a_min=0.0, a_max=None))
@@ -177,13 +177,13 @@ class StreamingSampleContainer(object):
 
     @cached_property
     def conditional_beta(self):
-        gamma = np.concatenate([self._gamma, [1.0 / self._normalizer]]) if self._beta.shape != self._gamma.shape \
-            else self._gamma
+        delta = self._beta.shape[0] - self._gamma.shape[0]
+        gamma = np.concatenate([self._gamma, delta * [1.0 / self._normalizer]]) if delta > 0 else self._gamma
         return np.true_divide(self._beta, gamma, where=gamma != 0, out=np.zeros(self._beta.shape))
 
     @cached_property
     def conditional_beta_std(self):
-        gamma = np.concatenate([self._gamma, [1.0 / self._normalizer]]) if self._beta.shape != self._gamma.shape \
-            else self._gamma
+        delta = self._beta.shape[0] - self._gamma.shape[0]
+        gamma = np.concatenate([self._gamma, delta * [1.0 / self._normalizer]]) if delta > 0 else self._gamma
         beta_sq = np.true_divide(self._beta_sq, gamma, where=gamma != 0, out=np.zeros(self._beta.shape))
         return np.sqrt(np.clip(beta_sq - np.square(self.conditional_beta), a_min=0.0, a_max=None))
