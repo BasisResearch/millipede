@@ -8,11 +8,16 @@ from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-@pytest.mark.parametrize("precompute_XX", [False, True])
+#@pytest.mark.parametrize("precompute_XX", [False, True])
+#@pytest.mark.parametrize("prior", ["isotropic", "gprior"])
+#@pytest.mark.parametrize("include_intercept", [True, False])
+#@pytest.mark.parametrize("variable_S", [False, True])
+@pytest.mark.parametrize("precompute_XX", [False])
 @pytest.mark.parametrize("prior", ["isotropic", "gprior"])
-@pytest.mark.parametrize("include_intercept", [True, False])
-@pytest.mark.parametrize("variable_S", [False, True])
-def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
+@pytest.mark.parametrize("include_intercept", [True])
+@pytest.mark.parametrize("variable_S", [False])
+@pytest.mark.parametrize("X_assumed", [True, False])
+def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S, X_assumed,
                            N=128, P=16, intercept=2.34, T=2000, T_burnin=200, report_frequency=1100, seed=1):
 
     torch.manual_seed(seed)
@@ -24,10 +29,12 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
     if include_intercept:
         Y += intercept
 
+    X_assumed = torch.randn(N, 2).double() if X_assumed else None
+
     S = 1.0 if not variable_S else (0.25, 0.25 * P - 0.25)
 
     samples = []
-    sampler = NormalLikelihoodSampler(X, Y, precompute_XX=precompute_XX, prior=prior,
+    sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, precompute_XX=precompute_XX, prior=prior,
                                       compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                       tau=0.01, c=100.0, include_intercept=include_intercept,
                                       tau_intercept=1.0e-4)
@@ -44,11 +51,18 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S,
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
     beta = np.dot(np.transpose(samples.beta), weights)
+    print("beta", X_assumed is None, beta.shape, beta)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
 
     if include_intercept:
         assert_close(beta[-1].item(), intercept, atol=0.1)
-    assert_close(beta[2:P], np.zeros(P - 2), atol=0.02)
+
+    if X_assumed is None:
+        assert_close(beta[2:P], np.zeros(P - 2), atol=0.02)
+    else:
+        assert_close(beta[2:P+2], np.zeros(P), atol=0.02)
+
+    return
 
     XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
     columns = ['feat{}'.format(c) for c in range(P)] + ['response']

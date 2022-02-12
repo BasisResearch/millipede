@@ -72,6 +72,8 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     :param tensor X: A N x P `torch.Tensor` of covariates.
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
+    :param tensor X_assumed: A N x P' `torch.Tensor` of covariates that are always assumed to be part of the model.
+        Defaults to `None`.
     :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
@@ -96,7 +98,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param float xi_target: This hyperparameter controls how often :math:`h` MCMC updates are made if :math:`h`
         is a latent variable. Defaults to 0.2.
     """
-    def __init__(self, X, Y, S=5,
+    def __init__(self, X, Y, X_assumed=None, S=5,
                  prior="isotropic", include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4, c=100.0,
                  nu0=0.0, lambda0=0.0,
@@ -110,6 +112,13 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         assert X.dtype == Y.dtype
         assert X.device == Y.device
+
+        if X_assumed is not None:
+            assert X.dtype == X_assumed.dtype
+            assert X.device == X_assumed.device
+            if X.size(0) != X_assumed.size(0):
+                raise ValueError("X and X_assumed must have the same number of rows.")
+
         self.device = X.device
         self.dtype = X.dtype
 
@@ -124,11 +133,12 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             self.tau_intercept = 0.0
 
+        if X_assumed is not None:
+            assert X_assumed.size(-1) > 0
+            self.X = torch.cat([self.X, X_assumed], dim=-1)
+
         if include_intercept:
-            self.X = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
-            self.Pb = self.P + 1
-        else:
-            self.Pb = self.P
+            self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
 
         if not isinstance(S, tuple):
             if S >= self.P or S <= 0:
@@ -160,11 +170,11 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if not isinstance(S, tuple):
             self.h = S / self.P
-            self.xi = torch.tensor([0.0], device=X.device)
+            self.xi = torch.tensor([0.0], device=self.device)
         else:
             self.h_alpha, self.h_beta = S
             self.h = self.h_alpha / (self.h_alpha + self.h_beta)
-            self.xi = torch.tensor([5.0], device=X.device)
+            self.xi = torch.tensor([5.0], device=self.device)
             self.xi_target = xi_target
 
         self.c_one_c = self.c / (1.0 + self.c)
@@ -176,6 +186,18 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         self.compute_betas = compute_betas
         self.include_intercept = include_intercept
+
+        if include_intercept and X_assumed is None:
+            self.assumed_covariates = torch.tensor([self.P], device=self.device, dtype=torch.int64)
+        elif include_intercept and X_assumed is not None:
+            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1) + 1,  device=self.device, dtype=torch.int64)
+        elif not include_intercept and X_assumed is not None:
+            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1),  device=self.device, dtype=torch.int64)
+        else:
+            self.assumed_covariates = None  # torch.tensor([], device=self.device, dtype=torch.int64)
+
+        self.Ptot = self.P if self.assumed_covariates is None else self.P + self.assumed_covariates.size(-1)
+        self.Pa = 0 if self.assumed_covariates is None else self.assumed_covariates.size(-1)
         self.epsilon = 1.0e-18
 
         if verbose_constructor:
@@ -193,15 +215,11 @@ class NormalLikelihoodSampler(MCMCSampler):
             torch.manual_seed(seed)
 
         sample = SimpleNamespace(gamma=torch.zeros(self.P, device=self.device).bool(),
-                                 add_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
-                                 _i_prob=torch.zeros(self.P, device=self.device, dtype=self.dtype),
                                  _active=torch.tensor([], device=self.device, dtype=torch.int64),
-                                 _idx=0, _log_h_ratio=self.log_h_ratio, weight=0)
-        if self.compute_betas:
-            sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
+                                 _log_h_ratio=self.log_h_ratio)
 
-        if self.include_intercept:
-            sample._activeb = torch.tensor([self.P], device=self.device, dtype=torch.int64)
+        if self.Pa > 0:
+            sample._activeb = self.assumed_covariates
 
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
@@ -212,7 +230,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     def _compute_add_prob(self, sample, return_log_odds=False):
         active = sample._active
-        activeb = sample._activeb if self.include_intercept else sample._active
+        activeb = sample._activeb if self.Pa > 0 else sample._active
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
         num_active = active.size(-1)
 
@@ -227,7 +245,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             XX_k = self.XX_diag[inactive]
 
-        if self.include_intercept or num_active > 0:
+        if self.Pa > 0 or num_active > 0:
             X_activeb = self.X[:, activeb]
             Z_active = self.Z[activeb]
             if self.XX is not None:
@@ -262,23 +280,22 @@ class NormalLikelihoodSampler(MCMCSampler):
             if self.prior == 'isotropic':
                 log_det_inactive = -0.5 * torch.log1p(XX_k / self.tau)
 
-        if self.compute_betas and (num_active > 0 or self.include_intercept):
+        if self.compute_betas and (num_active > 0 or self.Pa > 0):
             beta_active = trisolve(Zt_active.unsqueeze(-1), L_active.t(), upper=True)[0].squeeze(-1)
-            sample.beta = self.X.new_zeros(self.Pb)
+            sample.beta = self.X.new_zeros(self.Ptot)
             if self.prior == 'gprior':
                 sample.beta[activeb] = self.c_one_c * beta_active
             else:
                 sample.beta[activeb] = beta_active
         elif self.compute_betas and num_active == 0:
-            sample.beta = self.X.new_zeros(self.Pb)
+            sample.beta = self.X.new_zeros(self.Ptot)
 
         if num_active > 1:
             active_loo = leave_one_out(active)  # I I-1
 
-            if self.include_intercept:
-                active_loob = torch.cat([active_loo,
-                                         (self.P * active_loo.new_ones(active_loo.size(0))).long().unsqueeze(-1)],
-                                        dim=-1)
+            if self.Pa > 0:
+                assumed_covariates = self.assumed_covariates.expand(num_active, -1)
+                active_loob = torch.cat([active_loo, assumed_covariates], dim=-1)
             else:
                 active_loob = active_loo
 
@@ -286,33 +303,43 @@ class NormalLikelihoodSampler(MCMCSampler):
 
             F = torch.cholesky_inverse(L_active, upper=False)
             F_loo = get_loo_inverses(F)
-            if self.include_intercept:
-                F_loo = F_loo[:-1]
+            if self.Pa > 0:
+                F_loo = F_loo[:-self.Pa]
 
             Zt_active_loo = matmul(F_loo, Z_active_loo.unsqueeze(-1)).squeeze(-1)
             Zt_active_loo_sq = einsum("ij,ij->i", Zt_active_loo, Z_active_loo)
 
             if self.prior == 'isotropic':
                 X_I_X_k = leave_one_out_off_diagonal(XX_active).unsqueeze(-1)
-                X_I_X_k = X_I_X_k if not self.include_intercept else X_I_X_k[:-1]
+                X_I_X_k = X_I_X_k if self.Pa == 0 else X_I_X_k[:-self.Pa]
 
                 F_X_I_X_k = matmul(F_loo, X_I_X_k).squeeze(-1)
                 XXFXX = einsum("ij,ij->i", X_I_X_k.squeeze(-1), F_X_I_X_k)
-                XX_active_diag = XX_active.diag() if not self.include_intercept else XX_active.diag()[:-1]
+                XX_active_diag = XX_active.diag() if self.Pa == 0 else XX_active.diag()[:-self.Pa]
                 G_k_inv = XX_active_diag - XXFXX
                 log_det_active = -0.5 * G_k_inv.log() + 0.5 * math.log(self.tau)
 
         elif num_active == 1:
-            if not self.include_intercept:
+            if self.Pa == 0:
                 Zt_active_loo_sq = 0.0
                 if self.prior == 'isotropic':
                     log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
-            else:
+            elif self.include_intercept and self.Pa == 1:
                 Zt_active_loo_sq = norm(self.Z[self.P]).pow(2.0) / (self.tau_intercept + float(self.N))
                 if self.prior == 'isotropic':
                     G_inv = norm(self.X[:, active], dim=0).pow(2.0) + self.tau \
                         - self.X[:, active].sum().pow(2.0) / (self.tau_intercept + float(self.N))
                     log_det_active = -0.5 * G_inv.log() + 0.5 * math.log(self.tau)
+            else:
+                XX_assumed = self.X[:, self.assumed_covariates].t() @ self.X[:, self.assumed_covariates]
+                if self.prior == "isotropic":
+                    XX_assumed.diagonal(dim1=-2, dim2=-1).add_(self.tau)
+                    if self.include_intercept:
+                        XX_assumed[-1, -1].add_(self.tau_intercept - self.tau)
+                L_assumed = safe_cholesky(XX_assumed)
+                Zt_active_loo = trisolve(self.Z[self.assumed_covariates].unsqueeze(-1), L_assumed, upper=False)[0].squeeze(-1)
+                Zt_active_loo_sq = norm(Zt_active_loo, dim=0).pow(2.0)
+
         elif num_active == 0:
             Zt_active_loo_sq = 0.0
             log_det_active = torch.tensor(0.0, device=self.device, dtype=self.dtype)
@@ -360,8 +387,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
 
             sample._active = torch.nonzero(sample.gamma).squeeze(-1)
-            sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=self.device)]) \
-                if self.include_intercept else sample._active
+            if self.Pa > 0:
+                sample._activeb = torch.cat([sample._active, self.assumed_covariates])
         else:
             sample = self.sample_alpha_beta(sample)
 
