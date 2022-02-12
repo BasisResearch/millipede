@@ -235,6 +235,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
 
         self.X_columns = X.columns.tolist()
         self.assumed_columns = assumed_columns
+        self.include_intercept = include_intercept
 
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
