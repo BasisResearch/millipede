@@ -14,19 +14,20 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 
 
 @pytest.mark.parametrize("variable_S", [False, True])
-def test_binomial(variable_S, streaming=False, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
+def test_binomial(variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
+    X_assumed = torch.randn(N, 2).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.005 * torch.randn(N, 2).double()
+    logits = Z + 0.33 * X_assumed[:, -1] + intercept + 0.01 * torch.randn(N)
     TC = 7.0 * torch.ones(N).double()
-    Y = torch.distributions.Binomial(total_count=TC,
-                                     logits=Z + intercept + 0.01 * torch.randn(N)).sample().double()
+    Y = torch.distributions.Binomial(total_count=TC, logits=logits).sample().double()
 
     S = (1.0, P - 1.0) if variable_S else 1.0
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, tau=0.01, tau_intercept=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, TC=TC, S=S, tau=0.01, tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
         if burned:
@@ -41,15 +42,18 @@ def test_binomial(variable_S, streaming=False, N=256, P=16, T=2000, T_burnin=200
 
     beta = np.dot(np.transpose(samples.beta), weights)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.20)
-    assert_close(beta[2:P], np.zeros(P - 2), atol=0.05)
+    assert_close(beta[2:P + 1], np.zeros(P - 1), atol=0.05)
+    assert_close(beta[P + 1].item(), 0.33, atol=0.05)
     assert_close(beta[-1].item(), intercept, atol=0.05)
 
     # test selector
-    XYTC = torch.cat([X, Y.unsqueeze(-1), TC.unsqueeze(-1)], axis=-1)
-    columns = ['feat{}'.format(c) for c in range(P)] + ['response', 'total_count']
+    XYTC = torch.cat([X, Y.unsqueeze(-1), TC.unsqueeze(-1), X_assumed], axis=-1)
+    assumed_columns = ['afeat0', 'afeat1']
+    columns = ['feat{}'.format(c) for c in range(P)] + ['response', 'total_count'] + assumed_columns
     dataframe = pandas.DataFrame(XYTC.data.numpy(), columns=columns)
 
     selector = BinomialLikelihoodVariableSelector(dataframe, 'response', 'total_count',
+                                                  assumed_columns=assumed_columns,
                                                   S=S, tau=0.01, tau_intercept=1.0e-4,
                                                   precision='double', device='cpu')
     selector.run(T=T, T_burnin=T_burnin, report_frequency=1100, streaming=streaming, seed=seed)
@@ -102,16 +106,18 @@ def test_bernoulli(streaming=True, N=256, P=16, T=2000, T_burnin=200, intercept=
 
 
 @pytest.mark.parametrize("streaming", [False, True])
-def test_negative_binomial(streaming, N=150, P=16, T=2000, T_burnin=500, psi0=0.37, seed=0):
+def test_negative_binomial(streaming, N=256, P=16, T=2000, T_burnin=500, psi0=0.37, seed=0):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
+    X_assumed = torch.randn(N, 2).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.001 * torch.randn(N, 2).double()
-    noise = torch.exp(0.1 * torch.randn(N))
-    Y = torch.distributions.Poisson(Z.exp() * noise).sample()
+    log_rate = Z + 0.33 * X_assumed[:, -1] + 0.05 * torch.randn(N)
+    Y = torch.distributions.Poisson(log_rate.exp()).sample()
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, psi0=psi0, TC=None, S=1.0, tau=0.01, tau_intercept=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, psi0=psi0,
+                                     TC=None, S=1.0, tau=0.01, tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
         if burned:
@@ -129,15 +135,18 @@ def test_negative_binomial(streaming, N=150, P=16, T=2000, T_burnin=500, psi0=0.
 
     beta = np.dot(np.transpose(samples.beta), weights)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
-    assert_close(beta[2:P], np.zeros(P - 2), atol=0.1)
+    assert_close(beta[2:P + 1], np.zeros(P - 1), atol=0.1)
+    assert_close(beta[P + 1].item(), 0.33, atol=0.1)
     assert_close(beta[-1].item(), -psi0, atol=0.1)
 
     # test selector
-    XYpsi0 = torch.cat([X, Y.unsqueeze(-1), X.new_ones(N, 1) * psi0], axis=-1)
-    columns = ['feat{}'.format(c) for c in range(P)] + ['response', 'psi0']
+    XYpsi0 = torch.cat([X, Y.unsqueeze(-1), X.new_ones(N, 1) * psi0, X_assumed], axis=-1)
+    assumed_columns = ['afeat0', 'afeat1']
+    columns = ['feat{}'.format(c) for c in range(P)] + ['response', 'psi0'] + assumed_columns
     dataframe = pandas.DataFrame(XYpsi0.data.numpy(), columns=columns)
 
     selector = NegativeBinomialLikelihoodVariableSelector(dataframe, 'response', 'psi0',
+                                                          assumed_columns=assumed_columns,
                                                           S=1.0, tau=0.01, tau_intercept=1.0e-4,
                                                           precision='double', device='cpu')
     selector.run(T=T, T_burnin=T_burnin, report_frequency=1250, streaming=streaming, seed=seed)

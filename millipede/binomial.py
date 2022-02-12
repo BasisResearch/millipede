@@ -94,6 +94,8 @@ class CountLikelihoodSampler(MCMCSampler):
 
     :param tensor X: A N x P `torch.Tensor` of covariates. This is a required argument.
     :param tensor Y: A N-dimensional `torch.Tensor` of non-negative count-valued responses. This is a required argument.
+    :param tensor X_assumed: A N x P' `torch.Tensor` of covariates that are always assumed to be part of the model.
+        Defaults to `None`.
     :param tensor TC: A N-dimensional `torch.Tensor` of non-negative counts. This is a required argument if
         you wish to specify a Binomial model. Defaults to None.
     :param tensor psi0: A N-dimensional `torch.Tensor` of offsets `psi0`. This is a required argument if
@@ -120,7 +122,7 @@ class CountLikelihoodSampler(MCMCSampler):
     :param bool verbose_constructor: Whether the class constructor should print some information to
         stdout upon initialization.
     """
-    def __init__(self, X, Y, TC=None, psi0=None,
+    def __init__(self, X, Y, X_assumed=None, TC=None, psi0=None,
                  S=5, tau=0.01, tau_intercept=1.0e-4,
                  explore=5.0, log_nu_rw_scale=0.05, omega_mh=True,
                  xi_target=0.25, init_nu=5.0, verbose_constructor=True):
@@ -133,12 +135,21 @@ class CountLikelihoodSampler(MCMCSampler):
 
         self.dtype = X.dtype
         self.device = X.device
+        self.Xb = X
+        self.N, self.P = X.shape
 
-        self.Xb = torch.cat([X, X.new_ones(X.size(0), 1)], dim=-1)
+        if X_assumed is not None:
+            assert self.dtype == X_assumed.dtype
+            assert self.device == X_assumed.device
+            if X.size(0) != X_assumed.size(0):
+                raise ValueError("X and X_assumed must have the same number of rows.")
+            assert X_assumed.size(-1) > 0
+            self.Xb = torch.cat([self.Xb, X_assumed], dim=-1)
+
+        self.Xb = torch.cat([self.Xb, X.new_ones(X.size(0), 1)], dim=-1)
         self.Y = Y
         self.Y_float = self.Y.type_as(X)
         self.tau = tau
-        self.N, self.P = X.shape
 
         self.negbin = psi0 is not None
         if self.negbin:
@@ -176,6 +187,13 @@ class CountLikelihoodSampler(MCMCSampler):
             raise ValueError("log_nu_rw_scale must be non-negative.")
         if xi_target <= 0.0 or xi_target >= 1.0:
             raise ValueError("xi_target must be in the interval (0, 1).")
+
+        if X_assumed is not None:
+            self.assumed_covariates = torch.arange(self.P, self.P + X_assumed.size(-1) + 1, device=self.device)
+        else:
+            self.assumed_covariates = torch.tensor([self.P], device=self.device, dtype=torch.int64)
+
+        self.Pa = self.assumed_covariates.size(-1)
 
         if not isinstance(S, tuple):
             self.h = S / self.P
@@ -224,22 +242,19 @@ class CountLikelihoodSampler(MCMCSampler):
         _Z = einsum("np,n->p", self.Xb, _kappa_omega)
 
         sample = SimpleNamespace(gamma=self.Xb.new_zeros(self.P).bool(),
-                                 add_prob=self.Xb.new_zeros(self.P),
-                                 _i_prob=self.Xb.new_zeros(self.P),
-                                 _psi=self.Xb.new_zeros(self.N),
-                                 beta_mean=self.Xb.new_zeros(self.P + 1),
-                                 beta=self.Xb.new_zeros(self.P + 1),
                                  _omega=_omega,
+                                 beta=self.Xb.new_zeros(self.P + self.Pa),
+                                 beta_mean=self.Xb.new_zeros(self.P + self.Pa),
+                                 _psi0=_psi0,
                                  _idx=0,
                                  weight=0,
                                  log_nu=log_nu,
                                  _kappa=_kappa,
                                  _kappa_omega=_kappa_omega,
                                  _Z=_Z,
-                                 _psi0=_psi0,
                                  _log_h_ratio=self.log_h_ratio,
                                  _active=torch.tensor([], dtype=torch.int64),
-                                 _activeb=torch.tensor([self.P], dtype=torch.int64))
+                                 _activeb=self.assumed_covariates)
 
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
@@ -274,30 +289,32 @@ class CountLikelihoodSampler(MCMCSampler):
         log_det_ratio_inactive = -0.5 * G_k_inv.log() + self.half_log_tau
 
         if num_active > 1:
-            active_loo = leave_one_out(active)  # I  I-1
-            active_loob = torch.cat([active_loo,
-                                     (self.P * active_loo.new_ones(active_loo.size(0)).long().unsqueeze(-1))], dim=-1)
+            active_loo = leave_one_out(active)  # I I-1
+            active_loob = torch.cat([active_loo, self.assumed_covariates.expand(num_active, -1)], dim=-1)
+
             Z_active_loo = sample._Z[active_loob]
 
             F = torch.cholesky_inverse(self._L_active, upper=False)
-            F_loo = get_loo_inverses(F)[:-1]
+            F_loo = get_loo_inverses(F)[:-self.Pa]
 
             Zt_active_loo = matmul(F_loo, Z_active_loo.unsqueeze(-1)).squeeze(-1)
             Zt_active_loo_sq = einsum("ij,ij->i", Zt_active_loo, Z_active_loo)
 
-            X_I_X_k = leave_one_out_off_diagonal(self._precision).unsqueeze(-1)[:-1]
+            X_I_X_k = leave_one_out_off_diagonal(self._precision).unsqueeze(-1)[:-self.Pa]
             F_X_I_X_k = matmul(F_loo, X_I_X_k).squeeze(-1)
 
             XXFXX = einsum("ij,ij->i", X_I_X_k.squeeze(-1), F_X_I_X_k)
             G_k_inv = norm(X_omega[:, active], dim=0).pow(2.0) + self.tau - XXFXX
             log_det_ratio_active = -0.5 * G_k_inv.log() + self.half_log_tau
         elif num_active == 1:
-            tau_plus_omega = self.tau_intercept + sample._omega.sum()
-            Zt_active_loo_sq = sample._kappa_omega.sum().pow(2.0) / tau_plus_omega
-            Xom_active = X_omega[:, active].squeeze(-1)
-            G_k_inv = Xom_active.pow(2.0).sum() + self.tau -\
-                (Xom_active * sample._omega.sqrt()).sum().pow(2.0) / tau_plus_omega
-            log_det_ratio_active = -0.5 * G_k_inv.log() + self.half_log_tau
+            XX_assumed = self._precision[-self.Pa:][:, -self.Pa:]
+            L_assumed = safe_cholesky(XX_assumed)
+            Zt_active_loo = trisolve(sample._Z[self.assumed_covariates].unsqueeze(-1),
+                                     L_assumed, upper=False)[0].squeeze(-1)
+            Zt_active_loo_sq = norm(Zt_active_loo, dim=0).pow(2.0)
+            log_det_ratio_active = L_assumed.diagonal().log().sum() - self._L_active.diagonal().log().sum()
+            log_det_ratio_active += 0.5 * math.log(self.tau)
+
         elif num_active == 0:
             Zt_active_loo_sq = 0.0  # dummy values since no active covariates
             log_det_ratio_active = torch.tensor(0.0)
@@ -334,7 +351,7 @@ class CountLikelihoodSampler(MCMCSampler):
         if sample._idx.item() >= 0:
             sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
             sample._active = torch.nonzero(sample.gamma).squeeze(-1)
-            sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=sample.gamma.device)])
+            sample._activeb = torch.cat([sample._active, self.assumed_covariates], dim=-1)
             sample = self.sample_beta(sample)
         else:
             if hasattr(self, 'h_alpha'):

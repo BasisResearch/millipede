@@ -235,7 +235,6 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
 
         self.X_columns = X.columns.tolist()
         self.assumed_columns = assumed_columns
-        self.include_intercept = include_intercept
 
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
@@ -266,7 +265,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
         column_names = self.X_columns + self.assumed_columns
         if self.include_intercept:
-            column_names += ['intercept']
+            column_names += ['Intercept']
 
         self.beta = pd.Series(self.container.beta, index=column_names, name="Coefficient")
         self.beta_std = pd.Series(self.container.beta_std, index=column_names, name="Coefficient StdDev")
@@ -343,11 +342,14 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response and total count column
-        are assumed to be covariates.
+        encodes a single data point. All columns apart from the response and total count column (and the columns
+        in `assumed_columns` if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
         for each data point.
+    :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
+        are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
+        as they are always included in the model.
     :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
@@ -365,7 +367,7 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
         or :math:`h` updates if the latter is a latent variable. Defaults to 0.25. For expert users only.
     """
-    def __init__(self, dataframe, response_column, total_count_column,
+    def __init__(self, dataframe, response_column, total_count_column, assumed_columns=[],
                  S=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu",
                  explore=5, xi_target=0.25):
@@ -378,25 +380,34 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
             raise ValueError("response_column must be a valid column in the dataframe.")
         if total_count_column not in dataframe.columns:
             raise ValueError("total_count_column must be a valid column in the dataframe.")
+        if not isinstance(assumed_columns, list) or any([c not in dataframe.columns for c in assumed_columns]):
+            raise ValueError("assumed_columns must be a list of string names of columns in the dataframe.")
 
-        X = dataframe.drop([response_column, total_count_column], axis=1)
+        X = dataframe.drop([response_column, total_count_column] + assumed_columns, axis=1)
         Y = dataframe[response_column]
         TC = dataframe[total_count_column]
+        X_assumed = None if len(assumed_columns) == 0 else dataframe[assumed_columns]
+
         self.X_columns = X.columns.tolist()
+        self.assumed_columns = assumed_columns
 
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
             TC = torch.from_numpy(TC.values).float()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).float()
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
             TC = torch.from_numpy(TC.values).double()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).double()
 
         if device == 'cpu':
             X, Y, TC = X.cpu(), Y.cpu(), TC.cpu()
+            X_assumed = None if X_assumed is None else X_assumed.cpu()
         elif device == 'gpu':
             X, Y, TC = X.cuda(), Y.cuda(), TC.cuda()
+            X_assumed = None if X_assumed is None else X_assumed.cuda()
 
-        self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, explore=explore,
+        self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, X_assumed=X_assumed, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
                                               xi_target=xi_target,
                                               verbose_constructor=False)
@@ -406,12 +417,13 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
                     report_frequency=report_frequency, streaming=streaming, seed=seed)
 
         self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
-        self.beta = pd.Series(self.container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
-        self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns + ['Intercept'],
-                                  name="Coefficient StdDev")
-        self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns + ['Intercept'],
+        column_names = self.X_columns + self.assumed_columns + ['Intercept']
+
+        self.beta = pd.Series(self.container.beta, index=column_names, name="Coefficient")
+        self.beta_std = pd.Series(self.container.beta_std, index=column_names, name="Coefficient StdDev")
+        self.conditional_beta = pd.Series(self.container.conditional_beta, index=column_names,
                                           name="Conditional Coefficient")
-        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=self.X_columns + ['Intercept'],
+        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=column_names,
                                               name="Conditional Coefficient StdDev")
 
         self.summary = pd.concat([self.pip, self.beta, self.beta_std,
@@ -486,8 +498,12 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response column are assumed to be covariates.
+        encodes a single data point. All columns apart from the response column (and the columns in `assumed_columns`
+        if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the binary-valued responses.
+    :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
+        are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
+        as they are always included in the model.
     :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
@@ -505,14 +521,14 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
         or :math:`h` updates if the latter is a latent variable. Defaults to 0.25. For expert users only.
     """
-    def __init__(self, dataframe, response_column,
+    def __init__(self, dataframe, response_column, assumed_columns=[],
                  S=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu",
                  explore=5, xi_target=0.25):
 
         dataframe['DummyTotalCount'] = 1.0
-        super().__init__(dataframe, response_column, 'DummyTotalCount', S=S, explore=explore,
-                         tau=tau, tau_intercept=tau_intercept, precision=precision,
+        super().__init__(dataframe, response_column, 'DummyTotalCount', assumed_columns=assumed_columns,
+                         S=S, explore=explore, tau=tau, tau_intercept=tau_intercept, precision=precision,
                          device=device, xi_target=xi_target)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
@@ -588,10 +604,14 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response and psi0 column are assumed to be covariates.
+        encodes a single data point. All columns apart from the response and psi0 column (and the columns in
+        `assumed_columns` if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str psi0_column: The name of the column in `dataframe` that contains the offset
         :math:`\psi_{0, n}` for each data point.
+    :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
+        are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
+        as they are always included in the model.
     :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
@@ -613,7 +633,7 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param float init_nu: This hyperparameter controls the initial value of the dispersion parameter `nu`.
         Defaults to 5.0. For expert users only.
     """
-    def __init__(self, dataframe, response_column, psi0_column,
+    def __init__(self, dataframe, response_column, psi0_column, assumed_columns=[],
                  S=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu",
                  log_nu_rw_scale=0.05, explore=5.0,
@@ -627,25 +647,34 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
             raise ValueError("response_column must be a valid column in the dataframe.")
         if psi0_column not in dataframe.columns:
             raise ValueError("psi0 must be a valid column in the dataframe.")
+        if not isinstance(assumed_columns, list) or any([c not in dataframe.columns for c in assumed_columns]):
+            raise ValueError("assumed_columns must be a list of string names of columns in the dataframe.")
 
-        X = dataframe.drop([response_column, psi0_column], axis=1)
+        X = dataframe.drop([response_column, psi0_column] + assumed_columns, axis=1)
         Y = dataframe[response_column]
         psi0 = dataframe[psi0_column]
+        X_assumed = None if len(assumed_columns) == 0 else dataframe[assumed_columns]
+
         self.X_columns = X.columns.tolist()
+        self.assumed_columns = assumed_columns
 
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
             psi0 = torch.from_numpy(psi0.values).float()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).float()
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
             psi0 = torch.from_numpy(psi0.values).double()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).double()
 
         if device == 'cpu':
             X, Y, psi0 = X.cpu(), Y.cpu(), psi0.cpu()
+            X_assumed = None if X_assumed is None else X_assumed.cpu()
         elif device == 'gpu':
             X, Y, psi0 = X.cuda(), Y.cuda(), psi0.cuda()
+            X_assumed = None if X_assumed is None else X_assumed.cuda()
 
-        self.sampler = CountLikelihoodSampler(X, Y, psi0=psi0, S=S, explore=explore,
+        self.sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, psi0=psi0, S=S, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
                                               log_nu_rw_scale=log_nu_rw_scale,
                                               xi_target=xi_target, init_nu=init_nu,
@@ -656,12 +685,13 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
                     streaming=streaming, seed=seed)
 
         self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
-        self.beta = pd.Series(self.container.beta, index=self.X_columns + ['Intercept'], name="Coefficient")
-        self.beta_std = pd.Series(self.container.beta_std, index=self.X_columns + ['Intercept'],
-                                  name="Coefficient StdDev")
-        self.conditional_beta = pd.Series(self.container.conditional_beta, index=self.X_columns + ['Intercept'],
+        column_names = self.X_columns + self.assumed_columns + ['Intercept']
+
+        self.beta = pd.Series(self.container.beta, index=column_names, name="Coefficient")
+        self.beta_std = pd.Series(self.container.beta_std, index=column_names, name="Coefficient StdDev")
+        self.conditional_beta = pd.Series(self.container.conditional_beta, index=column_names,
                                           name="Conditional Coefficient")
-        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=self.X_columns + ['Intercept'],
+        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=column_names,
                                               name="Conditional Coefficienti StdDev")
 
         self.summary = pd.concat([self.pip, self.beta, self.beta_std,
