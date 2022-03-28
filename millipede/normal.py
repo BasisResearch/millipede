@@ -171,8 +171,10 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.xi = torch.tensor([5.0], device=self.device)
             self.xi_target = xi_target
 
-        self.c_one_c = self.c / (1.0 + self.c)
-        self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
+        if prior == "gprior":
+            self.c_one_c = self.c / (1.0 + self.c)
+            self.c_one_c_sqrt = math.sqrt(self.c_one_c)
+            self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
         self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
 
         self.explore = explore / self.P
@@ -284,10 +286,13 @@ class NormalLikelihoodSampler(MCMCSampler):
         if self.compute_betas and (num_active > 0 or self.Pa > 0):
             beta_active = trisolve(Zt_active.unsqueeze(-1), L_active.t(), upper=True)[0].squeeze(-1)
             sample.beta = self.X.new_zeros(self.P + self.Pa)
+            epsilon = torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype)
             if self.prior == 'gprior':
                 sample.beta[activeb] = self.c_one_c * beta_active
+                sample.beta[activeb] += self.c_one_c_sqrt * trisolve(epsilon, L_active, upper=False)[0].squeeze(-1)
             else:
                 sample.beta[activeb] = beta_active
+                sample.beta[activeb] += trisolve(epsilon, L_active, upper=False)[0].squeeze(-1)
         elif self.compute_betas and num_active == 0:
             sample.beta = self.X.new_zeros(self.P + self.Pa)
 

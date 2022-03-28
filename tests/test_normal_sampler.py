@@ -13,7 +13,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("include_intercept", [True, False])
 @pytest.mark.parametrize("variable_S_X_assumed", [(False, False), (True, True)])
 def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S_X_assumed,
-                           N=128, P=16, intercept=2.34, T=2000, T_burnin=200, report_frequency=1100, seed=1):
+                           N=128, P=16, intercept=2.34, T=4000, T_burnin=200, report_frequency=1100, seed=1):
 
     variable_S, X_assumed = variable_S_X_assumed
 
@@ -93,11 +93,11 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S_X
     else:
         assert_close(selector.beta.values[2:P + 2], np.concatenate([np.zeros(P - 1), np.array([0.5])]), atol=0.02)
 
-    assert_close(selector.conditional_beta.values[:2], np.array([1.0, 1.0]), atol=0.2)
+    assert_close(selector.conditional_beta.values[:2], np.array([1.0, 1.0]), atol=0.25)
     if include_intercept:
         assert_close(selector.conditional_beta.values[-1].item(), intercept, atol=0.1)
         assert_close(selector.conditional_beta.values[-1].item(),
                      selector.beta.values[-1].item(), atol=1.0e-6)
-    assert_close(selector.conditional_beta.values[2:P], np.zeros(P - 2), atol=0.15)
+    assert_close(selector.conditional_beta.values[2:P], np.zeros(P - 2), atol=0.30)
 
     print("[selector.stats]\n", selector.stats)
