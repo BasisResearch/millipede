@@ -115,7 +115,7 @@ def test_gprior_compute_add_log_prob(P, P_assumed, precompute_XX, include_interc
     X_assumed = torch.randn(N, P_assumed).double() if P_assumed > 0 else None
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
 
-    sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=1,
+    sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=1.0,
                                       tau=0.0, c=0.73, include_intercept=include_intercept,
                                       precompute_XX=precompute_XX, prior="gprior")
 
