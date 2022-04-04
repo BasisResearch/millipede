@@ -74,7 +74,9 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
     :param tensor X_assumed: A N x P' `torch.Tensor` of covariates that are always assumed to be part of the model.
         Defaults to `None`.
-    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        To specify covariate-level prior inclusion probabilities provide a P-dimensional `torch.Tensor` of
+        the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -140,12 +142,19 @@ class NormalLikelihoodSampler(MCMCSampler):
         if include_intercept:
             self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
 
-        if not isinstance(S, tuple):
+        if isinstance(S, float):
             if S >= self.P or S <= 0:
-                raise ValueError("S must satisfy 0 < S < P or must be a tuple.")
-        else:
+                raise ValueError("S must satisfy 0 < S < P or must be a tuple or tensor.")
+        elif isinstance(S, tuple):
             if len(S) != 2 or not isinstance(S[0], float) or not isinstance(S[1], float) or S[0] <= 0.0 or S[1] <= 0.0:
                 raise ValueError("If S is a tuple it must be a tuple of two positive floats (alpha, beta).")
+        elif isinstance(S, torch.Tensor):
+            if S.shape != (self.P,) or (S >= 1.0).any().item() or (S <= 0.0).any().item():
+                raise ValueError("If S is a tensor it must be P-dimensional and all elements must be strictly" +
+                                 " contained in (0, 1).")
+        else:
+            raise ValueError("S must be a float, tuple or tensor.")
+
         if prior == 'gprior' and self.c <= 0.0:
             raise ValueError("c must satisfy c > 0.0")
         if prior == 'isotropic' and self.tau <= 0.0:
@@ -162,20 +171,25 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.YY = Y.pow(2.0).sum() + nu0 * lambda0
         self.Z = einsum("np,n->p", self.X, Y)
 
-        if not isinstance(S, tuple):
+        if isinstance(S, float):
             self.h = S / self.P
             self.xi = torch.tensor([0.0], device=self.device)
-        else:
+            self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
+        elif isinstance(S, tuple):
             self.h_alpha, self.h_beta = S
             self.h = self.h_alpha / (self.h_alpha + self.h_beta)
             self.xi = torch.tensor([5.0], device=self.device)
             self.xi_target = xi_target
+            self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
+        else:
+            self.h = S
+            self.xi = torch.tensor([0.0], device=self.device)
+            self.log_h_ratio = S.log() - torch.log1p(-S)
 
         if prior == "gprior":
             self.c_one_c = self.c / (1.0 + self.c)
             self.c_one_c_sqrt = math.sqrt(self.c_one_c)
             self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
-        self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
 
         self.explore = explore / self.P
         self.N_nu0 = self.N + nu0
@@ -205,7 +219,10 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if verbose_constructor:
             s2 = " = ({}, {}, {:.1f}, {:.3f})" if not isinstance(S, tuple) else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f})"
-            S = S if isinstance(S, tuple) else (S,)
+            if isinstance(S, float):
+                S = (S,)
+            elif isinstance(S, torch.Tensor):
+                S = (S.min().item(), S.max().item())
             if self.prior == 'isotropic':
                 s1 = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)"
                 print((s1 + s2).format(self.N, self.P, *S, self.tau))
@@ -351,19 +368,23 @@ class NormalLikelihoodSampler(MCMCSampler):
             Zt_active_loo_sq = 0.0
             log_det_active = torch.tensor(0.0, device=self.device, dtype=self.dtype)
 
+        log_h_ratio_active = sample._log_h_ratio[active] if isinstance(self.h, torch.Tensor) else sample._log_h_ratio
+        log_h_ratio_inactive = sample._log_h_ratio[inactive] if isinstance(self.h, torch.Tensor) \
+            else sample._log_h_ratio
+
         if self.prior == 'gprior':
             log_S_ratio = -torch.log1p(-self.c_one_c * W_k_sq / (self.YY - self.c_one_c * Zt_active_sq))
-            log_odds_inactive = sample._log_h_ratio - self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_inactive = log_h_ratio_inactive - self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
 
             log_S_ratio = torch.log(self.YY - self.c_one_c * Zt_active_loo_sq) -\
                 torch.log(self.YY - self.c_one_c * Zt_active_sq)
-            log_odds_active = sample._log_h_ratio - self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_active = log_h_ratio_active - self.log_one_c_sqrt + 0.5 * self.N_nu0 * log_S_ratio
         elif self.prior == 'isotropic':
             log_S_ratio = -torch.log1p(- W_k_sq / (self.YY - Zt_active_sq))
-            log_odds_inactive = sample._log_h_ratio + log_det_inactive + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_inactive = log_h_ratio_inactive + log_det_inactive + 0.5 * self.N_nu0 * log_S_ratio
 
             log_S_ratio = (self.YY - Zt_active_loo_sq).log() - (self.YY - Zt_active_sq).log()
-            log_odds_active = sample._log_h_ratio + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
+            log_odds_active = log_h_ratio_active + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
 
         log_odds = self.X.new_zeros(self.P)
         log_odds[inactive] = log_odds_inactive

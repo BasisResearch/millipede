@@ -3,6 +3,8 @@ from numpy.testing import assert_allclose
 
 
 def assert_close(actual, expected, atol=1e-7, rtol=0, msg="", equal_nan=False):
+    if hasattr(actual, 'shape') and hasattr(expected, 'shape'):
+        assert actual.shape == expected.shape
     if not msg:
         msg = "{} vs {}".format(actual, expected)
     if type(actual) != type(expected):
