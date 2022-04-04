@@ -101,7 +101,9 @@ class CountLikelihoodSampler(MCMCSampler):
     :param tensor psi0: A N-dimensional `torch.Tensor` of offsets `psi0`. This is a required argument if
         you wish to specify a Negative Binomial model. If the user specifies a float, `psi0` will be expanded
         to a N-dimensional vector internally. Defaults to None.
-    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
+        To specify covariate-level prior inclusion probabilities provide a P-dimensional `torch.Tensor` of
+        the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -123,7 +125,7 @@ class CountLikelihoodSampler(MCMCSampler):
         stdout upon initialization.
     """
     def __init__(self, X, Y, X_assumed=None, TC=None, psi0=None,
-                 S=5, tau=0.01, tau_intercept=1.0e-4,
+                 S=5.0, tau=0.01, tau_intercept=1.0e-4,
                  explore=5.0, log_nu_rw_scale=0.05, omega_mh=True,
                  xi_target=0.25, init_nu=5.0, verbose_constructor=True):
         super().__init__()
@@ -171,12 +173,21 @@ class CountLikelihoodSampler(MCMCSampler):
 
         if self.N != Y.size(-1):
             raise ValueError("X and Y should be of shape (N, P) and (N,), respectively.")
-        if not isinstance(S, tuple):
+
+        S = S if not isinstance(S, int) else float(S)
+        if isinstance(S, float):
             if S >= self.P or S <= 0:
-                raise ValueError("S must satisfy 0 < S < P or must be a tuple.")
-        else:
+                raise ValueError("S must satisfy 0 < S < P or must be a tuple or tensor.")
+        elif isinstance(S, tuple):
             if len(S) != 2 or not isinstance(S[0], float) or not isinstance(S[1], float) or S[0] <= 0.0 or S[1] <= 0.0:
                 raise ValueError("If S is a tuple it must be a tuple of two positive floats (alpha, beta).")
+        elif isinstance(S, torch.Tensor):
+            if S.shape != (self.P,) or (S >= 1.0).any().item() or (S <= 0.0).any().item():
+                raise ValueError("If S is a tensor it must be P-dimensional and all elements must be strictly" +
+                                 " contained in (0, 1).")
+        else:
+            raise ValueError("S must be a float, tuple or tensor.")
+
         if tau <= 0.0:
             raise ValueError("tau must be positive.")
         if tau_intercept <= 0.0:
@@ -195,14 +206,18 @@ class CountLikelihoodSampler(MCMCSampler):
 
         self.Pa = self.assumed_covariates.size(-1)
 
-        if not isinstance(S, tuple):
+        if isinstance(S, float):
             self.h = S / self.P
-        else:
+            self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
+        elif isinstance(S, tuple):
             self.h_alpha, self.h_beta = S
             self.h = self.h_alpha / (self.h_alpha + self.h_beta)
+            self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
+        else:
+            self.h = S
+            self.log_h_ratio = S.log() - torch.log1p(-S)
 
         self.explore = explore / self.P
-        self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
         self.half_log_tau = 0.5 * math.log(tau)
         self.tau_intercept = tau_intercept
 
@@ -216,7 +231,10 @@ class CountLikelihoodSampler(MCMCSampler):
         if verbose_constructor:
             s1 = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = "
             s2 = "({}, {}, {:.1f}, {:.1f})" if not isinstance(S, tuple) else "({}, {}, ({:.1f}, {:.1f}), {:.1f})"
-            S = S if isinstance(S, tuple) else (S,)
+            if isinstance(S, float):
+                S = (S,)
+            elif isinstance(S, torch.Tensor):
+                S = (S.min().item(), S.max().item())
             print((s1 + s2).format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, *S, explore))
 
     def initialize_sample(self, seed=None):
@@ -319,9 +337,13 @@ class CountLikelihoodSampler(MCMCSampler):
             Zt_active_loo_sq = 0.0  # dummy values since no active covariates
             log_det_ratio_active = torch.tensor(0.0)
 
-        log_odds_inactive = 0.5 * W_k_sq + log_det_ratio_inactive + sample._log_h_ratio
-        log_odds_active = 0.5 * (Zt_active.pow(2.0).sum() - Zt_active_loo_sq) +\
-            log_det_ratio_active + sample._log_h_ratio
+        log_h_ratio_active = sample._log_h_ratio[active] if isinstance(self.h, torch.Tensor) else sample._log_h_ratio
+        log_h_ratio_inactive = sample._log_h_ratio[inactive] if isinstance(self.h, torch.Tensor) \
+            else sample._log_h_ratio
+
+        log_odds_inactive = 0.5 * W_k_sq + log_det_ratio_inactive + log_h_ratio_inactive
+        log_odds_active = 0.5 * (Zt_active.pow(2.0).sum() - Zt_active_loo_sq) + \
+            log_det_ratio_active + log_h_ratio_active
 
         log_odds = self.Xb.new_zeros(self.P)
         log_odds[inactive] = log_odds_inactive

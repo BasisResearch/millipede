@@ -74,7 +74,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
     :param tensor X_assumed: A N x P' `torch.Tensor` of covariates that are always assumed to be part of the model.
         Defaults to `None`.
-    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
         To specify covariate-level prior inclusion probabilities provide a P-dimensional `torch.Tensor` of
         the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
@@ -100,7 +100,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param float xi_target: This hyperparameter controls how often :math:`h` MCMC updates are made if :math:`h`
         is a latent variable. Defaults to 0.2.
     """
-    def __init__(self, X, Y, X_assumed=None, S=5,
+    def __init__(self, X, Y, X_assumed=None, S=5.0,
                  prior="isotropic", include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4, c=100.0,
                  nu0=0.0, lambda0=0.0,
@@ -142,6 +142,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         if include_intercept:
             self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
 
+        S = S if not isinstance(S, int) else float(S)
         if isinstance(S, float):
             if S >= self.P or S <= 0:
                 raise ValueError("S must satisfy 0 < S < P or must be a tuple or tensor.")

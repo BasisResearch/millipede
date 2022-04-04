@@ -182,7 +182,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
-    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
         To specify covariate-level prior inclusion probabilities provide a P-dimensional `numpy.ndarray` of
         the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
@@ -356,7 +356,9 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
-    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
+        To specify covariate-level prior inclusion probabilities provide a P-dimensional `numpy.ndarray` of
+        the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -412,6 +414,9 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
         elif device == 'gpu':
             X, Y, TC = X.cuda(), Y.cuda(), TC.cuda()
             X_assumed = None if X_assumed is None else X_assumed.cuda()
+
+        if isinstance(S, np.ndarray):
+            S = torch.from_numpy(S).type_as(X)
 
         self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, X_assumed=X_assumed, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
@@ -510,7 +515,9 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
-    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
+        To specify covariate-level prior inclusion probabilities provide a P-dimensional `numpy.ndarray` of
+        the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -618,7 +625,9 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
-    :param float_or_tuple S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+    :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.
+        To specify covariate-level prior inclusion probabilities provide a P-dimensional `numpy.ndarray` of
+        the form `(h_1, ..., h_P)`.
         If a tuple of positive floats `(alpha, beta)` is provided, the a priori inclusion probability is a latent
         variable governed by the corresponding Beta prior so that the sparsity level is inferred from the data.
         Note that for a given choice of `alpha` and `beta` the expected number of covariates to include in the model
@@ -679,6 +688,9 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
         elif device == 'gpu':
             X, Y, psi0 = X.cuda(), Y.cuda(), psi0.cuda()
             X_assumed = None if X_assumed is None else X_assumed.cuda()
+
+        if isinstance(S, np.ndarray):
+            S = torch.from_numpy(S).type_as(X)
 
         self.sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, psi0=psi0, S=S, explore=explore,
                                               tau=tau, tau_intercept=tau_intercept,
