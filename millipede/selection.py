@@ -254,6 +254,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
             X_assumed = None if X_assumed is None else X_assumed.cuda()
 
         if isinstance(S, pd.Series):
+            if set(self.X_columns) != set(S.index):
+                raise ValueError("The index of S must match the named columns of dataframe.")
             S = torch.from_numpy(S.loc[self.X_columns].values).type_as(X)
 
         self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=c, explore=explore,
@@ -416,6 +418,8 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
             X_assumed = None if X_assumed is None else X_assumed.cuda()
 
         if isinstance(S, pd.Series):
+            if set(self.X_columns) != set(S.index):
+                raise ValueError("The index of S must match the named columns of dataframe.")
             S = torch.from_numpy(S.loc[self.X_columns].values).type_as(X)
 
         self.sampler = CountLikelihoodSampler(X, Y, TC=TC, S=S, X_assumed=X_assumed, explore=explore,
@@ -690,6 +694,8 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
             X_assumed = None if X_assumed is None else X_assumed.cuda()
 
         if isinstance(S, pd.Series):
+            if set(self.X_columns) != set(S.index):
+                raise ValueError("The index of S must match the named columns of dataframe.")
             S = torch.from_numpy(S.loc[self.X_columns].values).type_as(X)
 
         self.sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, psi0=psi0, S=S, explore=explore,
