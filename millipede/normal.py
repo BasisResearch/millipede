@@ -216,7 +216,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.XX = None
 
         self.Pa = 0 if self.assumed_covariates is None else self.assumed_covariates.size(-1)
-        self.epsilon = 1.0e-18
+        self.epsilon = 1.0e3 * torch.finfo(X.dtype).tiny
 
         if verbose_constructor:
             s2 = " = ({}, {}, {:.1f}, {:.3f})" if not isinstance(S, tuple) else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f})"

@@ -221,7 +221,7 @@ class CountLikelihoodSampler(MCMCSampler):
         self.half_log_tau = 0.5 * math.log(tau)
         self.tau_intercept = tau_intercept
 
-        self.epsilon = 1.0e-18
+        self.epsilon = 1.0e3 * torch.finfo(X.dtype).tiny
         self.xi = torch.tensor([5.0], device=X.device)
         self.xi_target = xi_target
 

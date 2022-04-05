@@ -60,15 +60,14 @@ def check_gammas(sampler, included_covariates, P, compute_log_factor_ratio):
 @pytest.mark.parametrize("P_assumed", [0, 1, 2])
 @pytest.mark.parametrize("precompute_XX", [False, True])
 @pytest.mark.parametrize("include_intercept", [False, True])
-@pytest.mark.parametrize("S_tensor", [False, True])
-def test_isotropic_compute_add_log_prob(P, P_assumed, precompute_XX, include_intercept, S_tensor,
+def test_isotropic_compute_add_log_prob(P, P_assumed, precompute_XX, include_intercept,
                                         N=11, tau=0.47, tau_intercept=0.11):
     X = torch.randn(N, P).double()
     X_assumed = torch.randn(N, P_assumed).double() if P_assumed > 0 else None
 
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
 
-    S = 1.0 if not S_tensor else (torch.randn(P) / 100).exp().double() / P
+    S = 1.0 if include_intercept else (torch.randn(P) / 100).exp().double() / P
     sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=0.0,
                                       tau=tau, tau_intercept=tau_intercept, include_intercept=include_intercept,
                                       precompute_XX=precompute_XX, prior="isotropic")
