@@ -6,9 +6,9 @@ import torch
 from polyagamma import random_polyagamma
 from torch import cholesky_solve as chosolve
 from torch import dot, einsum, matmul, sigmoid
-from torch import triangular_solve as trisolve
 from torch.distributions import Beta, Categorical, Uniform
 from torch.linalg import norm
+from torch.linalg import solve_triangular as trisolve
 from torch.nn.functional import softplus
 
 from .sampler import MCMCSampler
@@ -297,8 +297,8 @@ class CountLikelihoodSampler(MCMCSampler):
         X_omega_active = X_omega[:, activeb]
         Z_active = sample._Z[activeb]
 
-        Zt_active = trisolve(Z_active.unsqueeze(-1), self._L_active, upper=False)[0].squeeze(-1)
-        Xt_active = trisolve(X_omega_active.t(), self._L_active, upper=False)[0].t()
+        Zt_active = trisolve(self._L_active, Z_active.unsqueeze(-1), upper=False).squeeze(-1)
+        Xt_active = trisolve(self._L_active, X_omega_active.t(), upper=False).t()
         XtZt_active = einsum("np,p->n", Xt_active, Zt_active)
 
         XX_k = norm(X_omega_k, dim=0).pow(2.0)
@@ -327,8 +327,8 @@ class CountLikelihoodSampler(MCMCSampler):
         elif num_active == 1:
             XX_assumed = self._precision[-self.Pa:][:, -self.Pa:]
             L_assumed = safe_cholesky(XX_assumed)
-            Zt_active_loo = trisolve(sample._Z[self.assumed_covariates].unsqueeze(-1),
-                                     L_assumed, upper=False)[0].squeeze(-1)
+            Zt_active_loo = trisolve(L_assumed, sample._Z[self.assumed_covariates].unsqueeze(-1),
+                                     upper=False).squeeze(-1)
             Zt_active_loo_sq = norm(Zt_active_loo, dim=0).pow(2.0)
             log_det_ratio_active = L_assumed.diagonal().log().sum() - self._L_active.diagonal().log().sum()
             log_det_ratio_active += 0.5 * math.log(self.tau)
@@ -400,8 +400,9 @@ class CountLikelihoodSampler(MCMCSampler):
         beta_active = chosolve(sample._Z[activeb].unsqueeze(-1), self._L_active).squeeze(-1)
         sample.beta_mean[activeb] = beta_active
         sample.beta[activeb] = beta_active + \
-            trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
-                     self._L_active, upper=False)[0].squeeze(-1)
+            trisolve(self._L_active, torch.randn(activeb.size(-1), 1, device=self.device,
+                                                 dtype=self.dtype),
+                     upper=False).squeeze(-1)
 
         sample._psi = torch.mv(Xb_active, beta_active)
         return sample
@@ -421,7 +422,7 @@ class CountLikelihoodSampler(MCMCSampler):
             precision[-1, -1].add_(self.tau_intercept - self.tau)
 
             L = safe_cholesky(precision)
-            LZ = trisolve(sample._Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)
+            LZ = trisolve(L, sample._Z[activeb].unsqueeze(-1), upper=False).squeeze(-1)
             logdet = L.diag().log().sum() - L.size(-1) * self.half_log_tau
 
             return 0.5 * norm(LZ, dim=0).pow(2.0) - logdet, L, precision
@@ -429,8 +430,8 @@ class CountLikelihoodSampler(MCMCSampler):
         log_target_prop, L_prop, precision_prop = compute_log_target(omega_prop)
         beta_mean_prop = chosolve(sample._Z[activeb].unsqueeze(-1), L_prop).squeeze(-1)
         beta_prop = beta_mean_prop + \
-            trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
-                     L_prop, upper=False)[0].squeeze(-1)
+            trisolve(L_prop, torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
+                     upper=False).squeeze(-1)
         psi_prop = torch.mv(Xb_active, beta_mean_prop)
 
         if self.omega_mh:
@@ -499,7 +500,7 @@ class CountLikelihoodSampler(MCMCSampler):
             precision[-1, -1].add_(self.tau_intercept - self.tau)
 
             L = safe_cholesky(precision)
-            LZ = trisolve(Z[activeb].unsqueeze(-1), L, upper=False)[0].squeeze(-1)
+            LZ = trisolve(L, Z[activeb].unsqueeze(-1), upper=False).squeeze(-1)
             logdet = L.diag().log().sum() - L.size(-1) * self.half_log_tau
 
             return 0.5 * norm(LZ, dim=0).pow(2.0) - logdet, L, precision
@@ -507,8 +508,8 @@ class CountLikelihoodSampler(MCMCSampler):
         log_target_prop, L_prop, precision_prop = compute_log_target(omega_prop, Z_prop)
         beta_mean_prop = chosolve(Z_prop[activeb].unsqueeze(-1), L_prop).squeeze(-1)
         beta_prop = beta_mean_prop + \
-            trisolve(torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
-                     L_prop, upper=False)[0].squeeze(-1)
+            trisolve(L_prop, torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype),
+                     upper=False).squeeze(-1)
 
         psi_prop = torch.mv(Xb_active, beta_mean_prop)
         log_target_curr, _, _ = compute_log_target(sample._omega, sample._Z)

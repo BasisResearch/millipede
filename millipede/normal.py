@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import torch
 from torch import einsum, matmul, sigmoid
-from torch import triangular_solve as trisolve
 from torch.distributions import Beta, Categorical
 from torch.linalg import norm
+from torch.linalg import solve_triangular as trisolve
 
 from .sampler import MCMCSampler
 from .util import (
@@ -280,14 +280,14 @@ class NormalLikelihoodSampler(MCMCSampler):
 
             L_active = safe_cholesky(XX_active)
 
-            Zt_active = trisolve(Z_active.unsqueeze(-1), L_active, upper=False)[0].squeeze(-1)
-            Xt_active = trisolve(X_activeb.t(), L_active, upper=False)[0].t()
+            Zt_active = trisolve(L_active, Z_active.unsqueeze(-1), upper=False).squeeze(-1)
+            Xt_active = trisolve(L_active, X_activeb.t(), upper=False).t()
             XtZt_active = einsum("np,p->n", Xt_active, Zt_active)
 
             if self.XX is None:
                 G_k_inv = XX_k + self.tau - norm(einsum("ni,nk->ik", Xt_active, X_k), dim=0).pow(2.0)
             else:
-                normsq = trisolve(self.XX[activeb][:, inactive], L_active, upper=False)[0]
+                normsq = trisolve(L_active, self.XX[activeb][:, inactive], upper=False)
                 G_k_inv = XX_k + self.tau - norm(normsq, dim=0).pow(2.0)
 
             W_k_sq = (einsum("np,n->p", X_k, XtZt_active) - Z_k).pow(2.0) / (G_k_inv + self.epsilon)
@@ -302,15 +302,15 @@ class NormalLikelihoodSampler(MCMCSampler):
                 log_det_inactive = -0.5 * torch.log1p(XX_k / self.tau)
 
         if self.compute_betas and (num_active > 0 or self.Pa > 0):
-            beta_active = trisolve(Zt_active.unsqueeze(-1), L_active.t(), upper=True)[0].squeeze(-1)
+            beta_active = trisolve(L_active.t(), Zt_active.unsqueeze(-1), upper=True).squeeze(-1)
             sample.beta = self.X.new_zeros(self.P + self.Pa)
             epsilon = torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype)
             if self.prior == 'gprior':
                 sample.beta[activeb] = self.c_one_c * beta_active
-                sample.beta[activeb] += self.c_one_c_sqrt * trisolve(epsilon, L_active, upper=False)[0].squeeze(-1)
+                sample.beta[activeb] += self.c_one_c_sqrt * trisolve(L_active, epsilon, upper=False).squeeze(-1)
             else:
                 sample.beta[activeb] = beta_active
-                sample.beta[activeb] += trisolve(epsilon, L_active, upper=False)[0].squeeze(-1)
+                sample.beta[activeb] += trisolve(L_active, epsilon, upper=False).squeeze(-1)
         elif self.compute_betas and num_active == 0:
             sample.beta = self.X.new_zeros(self.P + self.Pa)
 
@@ -358,8 +358,8 @@ class NormalLikelihoodSampler(MCMCSampler):
                     if self.include_intercept:
                         XX_assumed[-1, -1].add_(self.tau_intercept - self.tau)
                 L_assumed = safe_cholesky(XX_assumed)
-                Zt_active_loo = trisolve(self.Z[self.assumed_covariates].unsqueeze(-1),
-                                         L_assumed, upper=False)[0].squeeze(-1)
+                Zt_active_loo = trisolve(L_assumed, self.Z[self.assumed_covariates].unsqueeze(-1),
+                                         upper=False).squeeze(-1)
                 Zt_active_loo_sq = norm(Zt_active_loo, dim=0).pow(2.0)
                 if self.prior == "isotropic":
                     log_det_active = L_assumed.diagonal().log().sum() - L_active.diagonal().log().sum()
