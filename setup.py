@@ -28,7 +28,7 @@ setup(
     author="Martin Jankowiak",
     author_email="mjankowi@broadinstitute.org",
     install_requires=[
-        "torch>=1.10",
+        "torch>=1.11",
         "pandas",
         "polyagamma==1.3.2",
         "tqdm",

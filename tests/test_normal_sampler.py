@@ -12,8 +12,11 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("prior", ["gprior", "isotropic"])
 @pytest.mark.parametrize("include_intercept", [True, False])
 @pytest.mark.parametrize("variable_S_X_assumed", [(False, False), (True, True)])
-def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S_X_assumed,
+@pytest.mark.parametrize("device", ["gpu", "cpu"])
+def test_linear_correlated(device, prior, precompute_XX, include_intercept, variable_S_X_assumed,
                            N=128, P=16, intercept=2.34, T=4000, T_burnin=200, report_frequency=1100, seed=1):
+    if device == "gpu" and not torch.cuda.is_available():
+        return
 
     variable_S, X_assumed = variable_S_X_assumed
 
@@ -33,10 +36,19 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S_X
     S = 1.0 if not variable_S else (0.25, 0.25 * P - 0.25)
 
     samples = []
-    sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, precompute_XX=precompute_XX, prior=prior,
-                                      compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
-                                      tau=0.01, c=100.0, include_intercept=include_intercept,
-                                      tau_intercept=1.0e-4)
+    if device == "cpu":
+        sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed,
+                                          precompute_XX=precompute_XX, prior=prior,
+                                          compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
+                                          tau=0.01, c=100.0, include_intercept=include_intercept,
+                                          tau_intercept=1.0e-4)
+    elif device == "gpu":
+        sampler = NormalLikelihoodSampler(X.cuda(), Y.cuda(),
+                                          X_assumed=X_assumed.cuda() if X_assumed is not None else None,
+                                          precompute_XX=precompute_XX, prior=prior,
+                                          compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
+                                          tau=0.01, c=100.0, include_intercept=include_intercept,
+                                          tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
         if burned:
@@ -75,7 +87,8 @@ def test_linear_correlated(prior, precompute_XX, include_intercept, variable_S_X
                                                 tau=0.01, c=100.0,
                                                 precompute_XX=precompute_XX,
                                                 include_intercept=include_intercept, prior=prior,
-                                                S=S, nu0=0.0, lambda0=0.0, precision='double')
+                                                S=S, nu0=0.0, lambda0=0.0, precision='double',
+                                                device=device)
 
     selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency, streaming=precompute_XX, seed=seed)
 
