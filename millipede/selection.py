@@ -65,6 +65,7 @@ class BayesianVariableSelector(object):
         :param bool streaming: If True, MCMC samples are not stored in memory and summary statistics are computed
             online. Otherwise all `T` MCMC samples are stored in memory. Defaults to True. Only disable streaming if
             you wish to do something with the samples in the `samples` attribute (and have sufficient memory available).
+        :param int seed: Random number seed for reproducibility. Defaults to None.
         """
         if not isinstance(T, int) and T > 0:
             raise ValueError("T must be a positive integer.")
