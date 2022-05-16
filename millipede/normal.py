@@ -13,6 +13,7 @@ from .util import (
     leave_one_out,
     leave_one_out_off_diagonal,
     safe_cholesky,
+    set_subtract
 )
 
 
@@ -115,7 +116,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         assert X.dtype == Y.dtype
         assert X.device == Y.device
 
-        if subset_size is not None and (subset_size < 2 or subset_size < self.P):
+        if subset_size is not None and (subset_size <= 1 or subset_size >= self.P - 1):
             raise ValueError("If subset_size is not None must be between 2 and P, the number of covariates.")
         self.subset_size = subset_size
         self.core_size = subset_size // 2
@@ -249,7 +250,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._activeb = self.assumed_covariates
 
         if self.subset_size is not None:
-            sample._active_subset = torch.permutation(self.P, device=self.device)[:self.subset_size]
+            sample._active_subset = torch.randperm(self.P, device=self.device)[:self.subset_size]
             sample._core_subset = sample._active_subset[:self.core_size]
 
         if hasattr(self, "h_alpha"):
@@ -435,8 +436,12 @@ class NormalLikelihoodSampler(MCMCSampler):
         sample.weight = sample._i_prob.mean().reciprocal()
 
         if self.subset_size is not None:
-            active_subset = torch.cat([torch.tensor([i]), sample._core_subset])
-
+            active_subset = torch.cat([sample._idx.unsqueeze(-1), sample._core_subset])
+            remaining = set_subtract(torch.arange(self.P, device=self.device), active_subset)
+            n = self.subset_size - len(active_subset)
+            remaining = remaining[torch.randperm(remaining.size(0), device=self.device)[:n]]
+            active_subset = torch.cat([active_subset, remaining])
+            assert active_subset.shape == (self.subset_size,)
 
         return sample
 

@@ -4,6 +4,15 @@ import numpy as np
 import torch
 
 
+def set_subtract(t1, t2):
+    """
+    Returns the set difference t1 - t2
+    """
+    combined = torch.cat((t1, t2))
+    uniques, counts = combined.unique(return_counts=True)
+    return t1[counts[:t1.size(0)] == 1]
+
+
 def safe_cholesky(A, epsilon=1.0e-8):
     """
     Equivalent of torch.linalg.cholesky that progressively adds
