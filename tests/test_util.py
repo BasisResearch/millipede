@@ -1,6 +1,6 @@
 import torch
 
-from millipede.util import safe_cholesky, set_subtract
+from millipede.util import safe_cholesky, set_subtract, set_intersect
 
 
 def test_safe_cholesky_smoke_test(D=10):
@@ -9,13 +9,20 @@ def test_safe_cholesky_smoke_test(D=10):
     safe_cholesky(XX)
 
 
-def test_set_subtract():
+def test_set_arithmetic():
 
     def _test(a, b):
-        result = set_subtract(torch.tensor(a), torch.tensor(b)).data.numpy().tolist()
+        result = set_subtract(a, b).data.numpy().tolist()
         assert len(set(result)) == len(result)
-        assert set(result) == set(a) - set(b)
+        assert set(result) == set(a.data.numpy().tolist()) - set(b.data.numpy().tolist())
 
-    for a in ([], [0], [0, 1], [0, 1, 2]):
-        for b in ([], [0], [0, 1], [0, 1, 2]):
-            _test(a, b)
+        result = set_intersect(a, b).data.numpy().tolist()
+        assert len(set(result)) == len(result)
+        assert set(result) == set(a.data.numpy().tolist()).intersection(set(b.data.numpy().tolist()))
+
+    for _ in range(5):
+        for a in range(10):
+            for b in range(10):
+                _a = torch.randperm(12)[:a] if a > 0 else torch.tensor([])
+                _b = torch.randperm(12)[:b] if b > 0 else torch.tensor([])
+                _test(_a, _b)
