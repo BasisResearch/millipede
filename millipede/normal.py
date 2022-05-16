@@ -106,7 +106,7 @@ class NormalLikelihoodSampler(MCMCSampler):
                  nu0=0.0, lambda0=0.0,
                  explore=5, precompute_XX=False,
                  compute_betas=False, verbose_constructor=True,
-                 xi_target=0.2):
+                 xi_target=0.2, subset_size=None):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
@@ -114,6 +114,11 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         assert X.dtype == Y.dtype
         assert X.device == Y.device
+
+        if subset_size is not None and (subset_size < 2 or subset_size < self.P):
+            raise ValueError("If subset_size is not None must be between 2 and P, the number of covariates.")
+        self.subset_size = subset_size
+        self.core_size = subset_size // 2
 
         if X_assumed is not None:
             assert X.dtype == X_assumed.dtype
@@ -230,6 +235,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             else:
                 s1 = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)"
                 print((s1 + s2).format(self.N, self.P, *S, self.c))
+            print("Subset size: {}".format(self.subset_size))
 
     def initialize_sample(self, seed=None):
         if seed is not None:
@@ -241,6 +247,10 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.Pa > 0:
             sample._activeb = self.assumed_covariates
+
+        if self.subset_size is not None:
+            sample._active_subset = torch.permutation(self.P, device=self.device)[:self.subset_size]
+            sample._core_subset = sample._active_subset[:self.core_size]
 
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
@@ -423,6 +433,10 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         sample = self._compute_probs(sample)
         sample.weight = sample._i_prob.mean().reciprocal()
+
+        if self.subset_size is not None:
+            active_subset = torch.cat([torch.tensor([i]), sample._core_subset])
+
 
         return sample
 
