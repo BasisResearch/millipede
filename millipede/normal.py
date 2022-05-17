@@ -121,6 +121,8 @@ class NormalLikelihoodSampler(MCMCSampler):
         #    raise ValueError("If subset_size is not None must be between 2 and P, the number of covariates.")
         self.subset_size = subset_size
         self.anchor_size = subset_size // 2 if subset_size is not None else None
+        if self.subset_size is not None:
+            self.pi = X.new_ones(self.P) / self.P
 
         if X_assumed is not None:
             assert X.dtype == X_assumed.dtype
@@ -251,12 +253,9 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._activeb = self.assumed_covariates
 
         if self.subset_size is not None:
-            #sample._active_subset = torch.randperm(self.P, device=self.device)[:self.subset_size]
-            #sample._anchor_subset = sample._active_subset[:self.anchor_size]
-            sample._active_subset = torch.arange(self.subset_size, device=self.device)
-            sample._anchor_subset = torch.arange(self.anchor_size, device=self.device)
-            print("_anchor_subset",sample._anchor_subset)
-            print("\n")
+            sample._active_subset = torch.randperm(self.P, device=self.device)[:self.subset_size]
+            self.anchor_subset = sample._active_subset[:self.anchor_size]
+            print("Initial anchor_subset", self.anchor_subset, "\n")
 
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
@@ -271,8 +270,8 @@ class NormalLikelihoodSampler(MCMCSampler):
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
 
         #print("active", sample._active)
-        if False and hasattr(sample, '_anchor_subset'):
-            print("anchor", sample._anchor_subset.data.numpy())
+        if False and hasattr(self, 'anchor_subset'):
+            print("anchor", self.anchor_subset.data.numpy())
             print("active_subset", sample._active_subset.data.numpy())
 
         if self.subset_size is not None:
@@ -433,10 +432,16 @@ class NormalLikelihoodSampler(MCMCSampler):
             skip = set_subtract(torch.arange(self.P, device=self.device), sample._active_subset)
             i_prob[skip] = 0.0
             sample.add_prob[skip] = gamma[skip]
-            #sample.add_prob = gamma
 
         if hasattr(self, 'h_alpha') and self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
+
+        if self.subset_size is not None and self.t <= self.T_burnin:
+            self.pi = (self.t / (self.t + 1)) * self.pi + sample.add_prob / (self.t + 1)  # FIX
+            self.anchor_subset = self.pi.argsort()[-self.anchor_size:]
+
+        if self.t == self.T_burnin and self.subset_size is not None:
+            print("Final anchor_subset", self.anchor_subset, "\n")
 
         #print("i_prob", i_prob.data.numpy())
         #print("add_prob", sample.add_prob.data.numpy())
@@ -465,10 +470,10 @@ class NormalLikelihoodSampler(MCMCSampler):
         #print("weight", sample.weight.item(), "\n")
 
         if self.subset_size is not None:
-            if sample._idx.item() not in set(sample._anchor_subset.data.numpy().tolist()):
-                active_subset = torch.cat([sample._idx.unsqueeze(-1), sample._anchor_subset])
+            if sample._idx.item() not in set(self.anchor_subset.data.numpy().tolist()):
+                active_subset = torch.cat([sample._idx.unsqueeze(-1), self.anchor_subset])
             else:
-                active_subset = sample._anchor_subset
+                active_subset = self.anchor_subset
             remaining = set_subtract(torch.arange(self.P, device=self.device), active_subset)
             n = self.subset_size - len(active_subset)
             remaining = remaining[torch.randperm(remaining.size(0), device=self.device)[:n]]
