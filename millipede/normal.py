@@ -7,6 +7,8 @@ from torch.distributions import Beta, Categorical
 from torch.linalg import norm
 from torch.linalg import solve_triangular as trisolve
 
+from scipy.special import gammaln as log_gamma
+
 from .sampler import MCMCSampler
 from .util import (
     get_loo_inverses,
@@ -122,7 +124,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.subset_size = subset_size
         self.anchor_size = subset_size // 2 if subset_size is not None else None
         if self.subset_size is not None:
-            self.pi = X.new_ones(self.P) / self.P
+            self.pi = X.new_ones(self.P)
             self.total_weight = 0.0
 
         if X_assumed is not None:
@@ -270,7 +272,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         activeb = sample._activeb if self.Pa > 0 else sample._active
         inactive = torch.nonzero(~sample.gamma).squeeze(-1)
 
-        #print("active", sample._active)
         if False and hasattr(self, 'anchor_subset'):
             print("anchor", self.anchor_subset.data.numpy())
             print("active_subset", sample._active_subset.data.numpy())
@@ -423,17 +424,21 @@ class NormalLikelihoodSampler(MCMCSampler):
         return log_odds
 
     def _compute_probs(self, sample):
-        sample.add_prob = sigmoid(self._compute_add_prob(sample))
+        sample._add_prob = sigmoid(self._compute_add_prob(sample))
 
-        gamma = sample.gamma.type_as(sample.add_prob)
-        prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
-        i_prob = 0.5 * (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        gamma = sample.gamma.type_as(sample._add_prob)
+        prob_gamma_i = gamma * sample._add_prob + (1.0 - gamma) * (1.0 - sample._add_prob)
+        i_prob = 0.5 * (sample._add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        if self.subset_size is not None:
+            i_prob[self.anchor_subset] *= (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
+
+        sample.pip = sample._add_prob.clone()
 
         if self.subset_size is not None:
             skip = set_subtract(torch.arange(self.P, device=self.device), sample._active_subset)
             i_prob[skip] = 0.0
-            sample.add_prob[skip] = gamma[skip]
-            #sample.add_prob = gamma
+            assert sample.pip[skip].max().item() == 0.0
+            sample.pip[skip] = gamma[skip]
 
         if hasattr(self, 'h_alpha') and self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
@@ -442,7 +447,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         sample.weight = sample._i_prob.mean().reciprocal()
 
         if self.subset_size is not None and self.t <= self.T_burnin:
-            self.pi = sample.weight * sample.add_prob + self.total_weight * self.pi
+            self.pi = sample.weight * sample.pip + self.total_weight * self.pi
             self.total_weight += sample.weight
             self.pi /= self.total_weight
             if self.t % 10 == 0 or self.t == self.T_burnin:
@@ -459,7 +464,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.t += 1
 
         sample._idx = Categorical(probs=sample._i_prob).sample() - 1
-        #print("_idx", sample._idx.item())
+        #assert sample._idx.item() in sample._active_subset.data.numpy().tolist()
 
         if sample._idx.item() >= 0:
             sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
