@@ -14,7 +14,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("variable_S_X_assumed", [(False, False)])
 @pytest.mark.parametrize("device", ["cpu"])
 def test_linear_correlated(device, prior, precompute_XX, include_intercept, variable_S_X_assumed,
-                           N=256, P=2048, intercept=2.34, T=20000, T_burnin=2000, report_frequency=1100, seed=1):
+                           N=128, P=16, intercept=2.34, T=10 * 1000, T_burnin=2000, report_frequency=1100, seed=1):
     if device == "gpu" and not torch.cuda.is_available():
         return
 
@@ -42,7 +42,7 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
                                           compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                           tau=0.01, c=100.0, include_intercept=include_intercept,
                                           tau_intercept=1.0e-4,
-                                          subset_size=None)
+                                          subset_size=8)
     elif device == "gpu":
         sampler = NormalLikelihoodSampler(X.cuda(), Y.cuda(),
                                           X_assumed=X_assumed.cuda() if X_assumed is not None else None,
@@ -64,8 +64,20 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
     samples = stack_namespaces(samples)
     weights = samples.weight / samples.weight.sum()
 
+    stats = {}
+    quantiles = [5.0, 10.0, 20.0, 50.0, 90.0, 95.0]
+    q5, q10, q20, q50, q90, q95 = np.percentile(weights, quantiles).tolist()
+    s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+    stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
+    s = "mean/std/min/max:  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
+    stats['Weight moments'] = s.format(weights.mean().item(), weights.std().item(),
+                                       weights.min().item(), weights.max().item())
+    for k, v in stats.items():
+        print(k, v)
+
     pip = np.dot(samples.add_prob.T, weights)
-    print("pip", pip[:4])
+    print("pip[0:8]", pip[0:8])
+    print("pip[8:16]", pip[8:16])
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 

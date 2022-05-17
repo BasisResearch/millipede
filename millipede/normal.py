@@ -117,12 +117,13 @@ class NormalLikelihoodSampler(MCMCSampler):
         assert X.dtype == Y.dtype
         assert X.device == Y.device
 
-        #if subset_size is not None and (subset_size <= 1 or subset_size >= self.P - 1):
-        #    raise ValueError("If subset_size is not None must be between 2 and P, the number of covariates.")
+        if subset_size is not None and (subset_size <= 1 or subset_size >= self.P):
+            raise ValueError("If subset_size is not None must be strictly between 1 and P, the number of covariates.")
         self.subset_size = subset_size
         self.anchor_size = subset_size // 2 if subset_size is not None else None
         if self.subset_size is not None:
             self.pi = X.new_ones(self.P) / self.P
+            self.total_weight = 0.0
 
         if X_assumed is not None:
             assert X.dtype == X_assumed.dtype
@@ -432,21 +433,25 @@ class NormalLikelihoodSampler(MCMCSampler):
             skip = set_subtract(torch.arange(self.P, device=self.device), sample._active_subset)
             i_prob[skip] = 0.0
             sample.add_prob[skip] = gamma[skip]
+            #sample.add_prob = gamma
 
         if hasattr(self, 'h_alpha') and self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
 
+        sample._i_prob = torch.cat([self.xi, i_prob])
+        sample.weight = sample._i_prob.mean().reciprocal()
+
         if self.subset_size is not None and self.t <= self.T_burnin:
-            self.pi = (self.t / (self.t + 1)) * self.pi + sample.add_prob / (self.t + 1)  # FIX
-            self.anchor_subset = self.pi.argsort()[-self.anchor_size:]
+            self.pi = sample.weight * sample.add_prob + self.total_weight * self.pi
+            self.total_weight += sample.weight
+            self.pi /= self.total_weight
+            if self.t % 10 == 0 or self.t == self.T_burnin:
+                self.anchor_subset = self.pi.argsort()[-self.anchor_size:]
+            if self.t % 100 == 0 or self.t == self.T_burnin:
+                print("pi[t]", self.pi[:5].data.numpy())
 
         if self.t == self.T_burnin and self.subset_size is not None:
             print("Final anchor_subset", self.anchor_subset, "\n")
-
-        #print("i_prob", i_prob.data.numpy())
-        #print("add_prob", sample.add_prob.data.numpy())
-
-        sample._i_prob = torch.cat([self.xi, i_prob])
 
         return sample
 
@@ -466,8 +471,6 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample = self.sample_alpha_beta(sample)
 
         sample = self._compute_probs(sample)
-        sample.weight = sample._i_prob.mean().reciprocal()
-        #print("weight", sample.weight.item(), "\n")
 
         if self.subset_size is not None:
             if sample._idx.item() not in set(self.anchor_subset.data.numpy().tolist()):
