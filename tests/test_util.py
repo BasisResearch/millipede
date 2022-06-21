@@ -20,7 +20,7 @@ def test_set_arithmetic():
         assert len(set(result)) == len(result)
         assert set(result) == set(a.data.numpy().tolist()).intersection(set(b.data.numpy().tolist()))
 
-    for _ in range(5):
+    for _ in range(50):
         for a in range(10):
             for b in range(10):
                 _a = torch.randperm(12)[:a] if a > 0 else torch.tensor([])
