@@ -208,7 +208,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.c_one_c_sqrt = math.sqrt(self.c_one_c)
             self.log_one_c_sqrt = 0.5 * math.log(1.0 + self.c)
 
-        self.explore = explore / self.P
+        self.explore = explore / self.P if self.subset_size is None else explore / self.subset_size
         self.N_nu0 = self.N + nu0
 
         self.compute_betas = compute_betas
