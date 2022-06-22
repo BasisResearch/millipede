@@ -122,11 +122,14 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if subset_size is not None and (subset_size <= 1 or subset_size >= self.P):
             raise ValueError("If subset_size is not None must be strictly between 1 and P, the number of covariates.")
+
         self.subset_size = subset_size
-        self.anchor_size = subset_size // 2 if subset_size is not None else None
+
         if self.subset_size is not None:
+            self.anchor_size = subset_size // 2
             self.pi = X.new_ones(self.P)
             self.total_weight = 0.0
+            self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
 
         if X_assumed is not None:
             assert X.dtype == X_assumed.dtype
@@ -211,9 +214,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.compute_betas = compute_betas
         self.include_intercept = include_intercept
 
-        if self.subset_size is not None:
-            self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
-
         if include_intercept and X_assumed is None:
             self.assumed_covariates = torch.tensor([self.P], device=self.device, dtype=torch.int64)
         elif include_intercept and X_assumed is not None:
@@ -234,7 +234,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.Pa = 0 if self.assumed_covariates is None else self.assumed_covariates.size(-1)
         self.epsilon = 1.0e3 * torch.finfo(X.dtype).tiny
 
-        self.time1 = 0.0
         self.time2 = 0.0
         self.time3 = 0.0
 
@@ -250,7 +249,11 @@ class NormalLikelihoodSampler(MCMCSampler):
             else:
                 s1 = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)"
                 print((s1 + s2).format(self.N, self.P, *S, self.c))
-            print("Subset size: {}".format(self.subset_size))
+
+            if self.subset_size is not None:
+                print("Subset size: {}".format(self.subset_size))
+            else:
+                print("Not using subset mode.")
 
     def initialize_sample(self, seed=None):
         if seed is not None:
@@ -265,10 +268,8 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.subset_size is not None:
             sample._active_subset = torch.randperm(self.P, device=self.device)[:self.subset_size]
-            self.anchor_subset = sample._active_subset[:self.anchor_size]
-            self.anchor_subset_set = set(self.anchor_subset.data.cpu().numpy().tolist())
-            self.anchor_complement = set_subtract(torch.arange(self.P, device=self.device), self.anchor_subset)
-            sample._idx = sample._active_subset[0]
+            self._update_anchor(sample._active_subset[:self.anchor_size])
+            #sample._idx = sample._active_subset[0]
 
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
@@ -276,6 +277,11 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         sample = self._compute_probs(sample)
         return sample
+
+    def _update_anchor(self, anchor):
+        self.anchor_subset = anchor
+        self.anchor_subset_set = set(anchor.data.cpu().numpy().tolist())
+        self.anchor_complement = set_subtract(torch.arange(self.P, device=self.device), anchor)
 
     def _compute_add_prob(self, sample, return_log_odds=False):
         active = sample._active
@@ -443,7 +449,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample.pip[sample._active_subset] = sample._add_prob[sample._active_subset]
         else:
             i_prob = _i_prob
-            sample.pip = sample._add_prob.clone()
+            sample.pip = sample._add_prob
 
         if hasattr(self, 'h_alpha') and self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
@@ -496,11 +502,9 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.total_weight += sample.weight
             self.pi /= self.total_weight
             if self.t % 100 == 0 or self.t == self.T_burnin:
-                self.anchor_subset = self.pi.argsort()[-self.anchor_size:]
-                self.anchor_subset_set = set(self.anchor_subset.data.cpu().numpy().tolist())
-                self.anchor_complement = set_subtract(torch.arange(self.P, device=self.device), self.anchor_subset)
-            if self.t % 2500 == 0 or self.t == self.T_burnin:
-                print("pi[t]", self.pi[:5].data.numpy())
+                self._update_anchor(self.pi.argsort()[-self.anchor_size:])
+            #if self.t % 2500 == 0 or self.t == self.T_burnin:
+            #    print("pi[t]", self.pi[:5].data.numpy())
             self.time3 += time.time() - t0
 
         if self.t == self.T_burnin and self.subset_size is not None:
