@@ -290,7 +290,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.subset_size is not None:
             inactive = torch.zeros(self.P, device=self.device, dtype=torch.bool)
-            inactive[sample._active_subset] = (~sample.gamma)[sample._active_subset]
+            inactive[sample._active_subset] = ~(sample.gamma[sample._active_subset])
             inactive = torch.nonzero(inactive).squeeze(-1)
         else:
             inactive = torch.nonzero(~sample.gamma).squeeze(-1)
@@ -503,8 +503,8 @@ class NormalLikelihoodSampler(MCMCSampler):
                 self._update_anchor(self.pi.argsort()[-self.anchor_size:])
             self.time3 += time.time() - t0
 
-        if self.t == self.T_burnin and self.subset_size is not None:
-            print("Final anchor_subset", self.anchor_subset, "\n")
+        #if self.t == self.T_burnin and self.subset_size is not None:
+            #print("Final anchor_subset", self.anchor_subset, "\n")
 
         return sample
 
