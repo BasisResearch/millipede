@@ -18,7 +18,6 @@ from .util import (
     leave_one_out_off_diagonal,
     safe_cholesky,
     set_subtract,
-    set_intersect,
 )
 
 
@@ -209,6 +208,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.anchor_size = subset_size // 2
             self.pi = X.new_ones(self.P) * self.h_mean
             self.total_weight = 0.0
+            self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
 
         self.explore = explore / self.P if self.subset_size is None else explore / self.subset_size
         self.N_nu0 = self.N + nu0
@@ -238,8 +238,6 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         self.time2 = 0.0
         self.time3 = 0.0
-        self.a_union = 0
-        self.idxs = []
 
         if verbose_constructor:
             s2 = " = ({}, {}, {:.1f}, {:.3f})" if not isinstance(S, tuple) else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f})"
@@ -283,8 +281,8 @@ class NormalLikelihoodSampler(MCMCSampler):
 
     def _update_anchor(self, anchor):
         self.anchor_subset = anchor
-        #self.anchor_subset_set = set(anchor.data.cpu().numpy().tolist())
-        #self.anchor_complement = set_subtract(torch.arange(self.P, device=self.device), anchor)
+        self.anchor_subset_set = set(anchor.data.cpu().numpy().tolist())
+        self.anchor_complement = set_subtract(torch.arange(self.P, device=self.device), anchor)
 
     def _compute_add_prob(self, sample, return_log_odds=False):
         active = sample._active
@@ -445,18 +443,11 @@ class NormalLikelihoodSampler(MCMCSampler):
         _i_prob = 0.5 * (sample._add_prob + self.explore) / (prob_gamma_i + self.epsilon)
 
         if self.subset_size is not None:
-            s = set(sample._active_subset.data.numpy().tolist())
-            a = self.a_union - gamma + 1
-            a[self.anchor_subset] = self.a_union
-            fac = torch.lgamma(self.subset_size - a + 1) - torch.lgamma(torch.tensor(self.subset_size + 1)) \
-                    - torch.lgamma(self.P - a + 1) + torch.lgamma(torch.tensor(self.P + 1))
+            _i_prob[self.anchor_subset] *= self.comb_factor
             i_prob = torch.zeros_like(_i_prob)
-            i_prob[sample._active_subset] = _i_prob[sample._active_subset] * fac[sample._active_subset].exp()
+            i_prob[sample._active_subset] = _i_prob[sample._active_subset]
             sample.pip = sample.gamma.type_as(i_prob)
             sample.pip[sample._active_subset] = sample._add_prob[sample._active_subset]
-            #for p in range(self.P):
-            #    if p not in sample._active_subset.data.numpy().tolist():
-            #        assert i_prob[p].item() == 0.0
         else:
             i_prob = _i_prob
             sample.pip = sample._add_prob
@@ -465,8 +456,6 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
 
         sample._i_prob = torch.cat([self.xi, i_prob])
-        #if self.t % 200 ==0 and self.subset_size is not None:
-        #    print("sample._active_subset",set_subtract(sample._active_subset, self.anchor_subset))
 
         return sample
 
@@ -474,14 +463,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.t += 1
 
         sample._idx = Categorical(probs=sample._i_prob).sample() - 1
-        #if sample._idx.item() in self.anchor_subset.data.numpy().tolist():
-        #    print(" sample._idx.item()", sample._idx.item())
-
-        if False and self.subset_size is not None:
-            assert sample._idx.item() in sample._active_subset.data.numpy().tolist()
-            for p in range(self.P):
-                if sample.gamma[p].item() == 1:
-                    assert p in sample._active_subset.data.numpy().tolist()
+        #assert sample._idx.item() in sample._active_subset.data.numpy().tolist()
 
         if sample._idx.item() >= 0:
             sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
@@ -494,22 +476,18 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.subset_size is not None:  # most expensive
             t0 = time.time()
-            to_include = sample.gamma.clone()
-            to_include[self.anchor_subset] = 1
-            self.a_union = int(to_include.sum().item())
-            to_include[sample._idx] = 1
-            num_included = int(to_include.sum().item())
-            num_remaining = self.subset_size - num_included
-            assert num_remaining >= 0
-
-            if num_remaining > 0:
-                remaining = torch.arange(self.P, device=self.device)[~to_include]
-                remaining = remaining[torch.randperm(remaining.size(0), device=self.device)[:num_remaining]]
-                to_include[remaining] = 1
-                assert int(to_include.sum().item()) == self.subset_size
-                sample._active_subset = torch.nonzero(to_include).squeeze(-1)
-                assert sample._active_subset.size(0) == self.subset_size
-                assert sample._idx.item() in sample._active_subset.data.numpy().tolist()
+            if sample._idx.item() not in self.anchor_subset_set:
+                active_subset = torch.cat([sample._idx.unsqueeze(-1), self.anchor_subset])
+                comp = self.anchor_complement[self.anchor_complement != sample._idx]
+                remaining = torch.randperm(comp.size(0), device=self.device)
+                remaining = comp[remaining[:self.subset_size - self.anchor_size - 1]]
+            else:
+                active_subset = self.anchor_subset
+                remaining = torch.randperm(self.anchor_complement.size(0), device=self.device)
+                remaining = self.anchor_complement[remaining[:self.subset_size - self.anchor_size]]
+            sample._active_subset = torch.cat([active_subset, remaining])
+            #assert sample._idx.item() in set(sample._active_subset.data.numpy().tolist())
+            #assert sample._active_subset.shape == (self.subset_size,)
             self.time2 += time.time() - t0
 
         sample = self._compute_probs(sample)
@@ -527,9 +505,6 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.t == self.T_burnin and self.subset_size is not None:
             print("Final anchor_subset", self.anchor_subset, "\n")
-
-        if self.t > self.T_burnin and self.subset_size is not None:
-            self.idxs.append(sample._idx.item())
 
         return sample
 
