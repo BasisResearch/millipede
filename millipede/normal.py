@@ -210,6 +210,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.total_weight = 0.0
             self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
 
+        #self.explore = explore / self.P
         self.explore = explore / self.P if self.subset_size is None else explore / self.subset_size
         self.N_nu0 = self.N + nu0
 
@@ -505,6 +506,8 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         #if self.t == self.T_burnin and self.subset_size is not None:
             #print("Final anchor_subset", self.anchor_subset, "\n")
+            #for p in range(20):
+            #    print("{} in anchor subset: {}".format(p, p in self.anchor_subset_set))
 
         return sample
 
