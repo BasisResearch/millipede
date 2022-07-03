@@ -471,8 +471,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             sample = self.sample_alpha_beta(sample)
 
-        if self.subset_size is not None:  # most expensive
-            #t0 = time.time()
+        if self.subset_size is not None and self.t >= self.T_burnin // 10:
             if sample._idx.item() not in self.anchor_subset_set:
                 active_subset = torch.cat([sample._idx.unsqueeze(-1), self.anchor_subset])
                 comp = self.anchor_complement[self.anchor_complement != sample._idx]
@@ -483,27 +482,27 @@ class NormalLikelihoodSampler(MCMCSampler):
                 remaining = torch.randperm(self.anchor_complement.size(0), device=self.device)
                 remaining = self.anchor_complement[remaining[:self.subset_size - self.anchor_size]]
             sample._active_subset = torch.cat([active_subset, remaining])
-            #assert sample._idx.item() in set(sample._active_subset.data.numpy().tolist())
-            #assert sample._active_subset.shape == (self.subset_size,)
-            #self.time2 += time.time() - t0
+        elif self.subset_size is not None:
+            active_subset = sample._idx.unsqueeze(-1)
+            all_P = torch.arange(self.P, device=self.device)
+            comp = all_P[self.anchor_complement != sample._idx]
+            remaining = torch.randperm(comp.size(0), device=self.device)
+            remaining = comp[remaining[:self.subset_size - self.anchor_size - 1]]
+            sample._active_subset = torch.cat([active_subset, remaining])
 
         sample = self._compute_probs(sample)
 
         sample.weight = sample._i_prob.mean().reciprocal()
 
         if self.subset_size is not None and self.t <= self.T_burnin:
-            #t0 = time.time()
             self.pi = sample.weight * sample.pip + self.total_weight * self.pi
             self.total_weight += sample.weight
             self.pi /= self.total_weight
-            if self.t % 100 == 0 or self.t == self.T_burnin:
+            if (self.t % 50 == 0 and self.t >= self.T_burnin) or self.t == self.T_burnin:
                 self._update_anchor(self.pi.argsort()[-self.anchor_size:])
-            #self.time3 += time.time() - t0
 
         #if self.t == self.T_burnin and self.subset_size is not None:
             #print("Final anchor_subset", self.anchor_subset, "\n")
-            #for p in range(20):
-            #    print("{} in anchor subset: {}".format(p, p in self.anchor_subset_set))
 
         return sample
 
