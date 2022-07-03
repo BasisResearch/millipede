@@ -236,9 +236,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.Pa = 0 if self.assumed_covariates is None else self.assumed_covariates.size(-1)
         self.epsilon = 1.0e3 * torch.finfo(X.dtype).tiny
 
-        self.time2 = 0.0
-        self.time3 = 0.0
-
         if verbose_constructor:
             s2 = " = ({}, {}, {:.1f}, {:.3f})" if not isinstance(S, tuple) else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f})"
             if isinstance(S, float):
@@ -475,7 +472,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample = self.sample_alpha_beta(sample)
 
         if self.subset_size is not None:  # most expensive
-            t0 = time.time()
+            #t0 = time.time()
             if sample._idx.item() not in self.anchor_subset_set:
                 active_subset = torch.cat([sample._idx.unsqueeze(-1), self.anchor_subset])
                 comp = self.anchor_complement[self.anchor_complement != sample._idx]
@@ -488,20 +485,20 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._active_subset = torch.cat([active_subset, remaining])
             #assert sample._idx.item() in set(sample._active_subset.data.numpy().tolist())
             #assert sample._active_subset.shape == (self.subset_size,)
-            self.time2 += time.time() - t0
+            #self.time2 += time.time() - t0
 
         sample = self._compute_probs(sample)
 
         sample.weight = sample._i_prob.mean().reciprocal()
 
         if self.subset_size is not None and self.t <= self.T_burnin:
-            t0 = time.time()
+            #t0 = time.time()
             self.pi = sample.weight * sample.pip + self.total_weight * self.pi
             self.total_weight += sample.weight
             self.pi /= self.total_weight
             if self.t % 100 == 0 or self.t == self.T_burnin:
                 self._update_anchor(self.pi.argsort()[-self.anchor_size:])
-            self.time3 += time.time() - t0
+            #self.time3 += time.time() - t0
 
         #if self.t == self.T_burnin and self.subset_size is not None:
             #print("Final anchor_subset", self.anchor_subset, "\n")

@@ -221,6 +221,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                  c=100.0,
                  nu0=0.0, lambda0=0.0,
                  precision="double", device="cpu",
+                 subset_size=None,
                  explore=5, precompute_XX=False,
                  xi_target=0.2):
 
@@ -232,6 +233,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
             raise ValueError("response_column must be a valid column in the dataframe.")
         if not isinstance(assumed_columns, list) or any([c not in dataframe.columns for c in assumed_columns]):
             raise ValueError("assumed_columns must be a list of string names of columns in the dataframe.")
+        if subset_size is not None and not isinstance(subset_size, int):
+            raise ValueError("subset_size must be a positive integer or None.")
 
         X, Y = dataframe.drop([response_column] + assumed_columns, axis=1), dataframe[response_column]
         X_assumed = None if len(assumed_columns) == 0 else dataframe[assumed_columns]
@@ -265,7 +268,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
-                                               xi_target=xi_target)
+                                               xi_target=xi_target, subset_size=subset_size)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
