@@ -57,7 +57,7 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
     samples = stack_namespaces(samples)
     weights = samples.weight / samples.weight.sum()
 
-    pip = np.dot(samples.add_prob.T, weights)
+    pip = np.dot(samples.pip.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 

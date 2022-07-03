@@ -352,11 +352,11 @@ class CountLikelihoodSampler(MCMCSampler):
         return log_odds
 
     def _compute_probs(self, sample):
-        sample.add_prob = sigmoid(self._compute_add_prob(sample))
+        sample.pip = sigmoid(self._compute_add_prob(sample))
 
         gamma = sample.gamma.double()
-        prob_gamma_i = gamma * sample.add_prob + (1.0 - gamma) * (1.0 - sample.add_prob)
-        i_prob = 0.5 * (sample.add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+        prob_gamma_i = gamma * sample.pip + (1.0 - gamma) * (1.0 - sample.pip)
+        i_prob = 0.5 * (sample.pip + self.explore) / (prob_gamma_i + self.epsilon)
 
         if self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)

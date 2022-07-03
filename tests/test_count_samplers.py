@@ -36,7 +36,7 @@ def test_binomial(variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200
     samples = stack_namespaces(samples)
     weights = samples.weight / samples.weight.sum()
 
-    pip = np.dot(samples.add_prob.T, weights)
+    pip = np.dot(samples.pip.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.15)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
@@ -90,7 +90,7 @@ def test_bernoulli(device, streaming=True, N=256, P=16, T=2000, T_burnin=200, in
     samples = stack_namespaces(samples)
     weights = samples.weight / samples.weight.sum()
 
-    pip = np.dot(samples.add_prob.T, weights)
+    pip = np.dot(samples.pip.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.15)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.15)
 
@@ -137,7 +137,7 @@ def test_negative_binomial(streaming, N=256, P=16, T=2000, T_burnin=500, psi0=0.
     nu = np.exp(np.dot(samples.log_nu, weights))
     assert nu > 2.0 and nu < 20.0
 
-    pip = np.dot(samples.add_prob.T, weights)
+    pip = np.dot(samples.pip.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(pip[2:], np.zeros(P - 2), atol=0.1)
 

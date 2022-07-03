@@ -22,7 +22,7 @@ def test_containers(P_assumed, P=101, atol=1.0e-7):
 
         sample = SimpleNamespace(gamma=gamma,
                                  beta=beta,
-                                 add_prob=np.random.rand(P),
+                                 pip=np.random.rand(P),
                                  log_nu=np.random.randn(),
                                  h_alpha=np.random.rand(),
                                  h_beta=np.random.rand(),

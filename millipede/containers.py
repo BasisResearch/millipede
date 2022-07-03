@@ -29,7 +29,7 @@ class SimpleSampleContainer(object):
 
     @cached_property
     def pip(self):
-        return np.dot(self.samples.add_prob.T, self.weights)
+        return np.dot(self.samples.pip.T, self.weights)
 
     @cached_property
     def beta(self):
@@ -100,7 +100,7 @@ class StreamingSampleContainer(object):
         self._weights.append(sample.weight)
 
         if self._num_samples == 1.0:
-            self._pip = sample.add_prob * sample.weight
+            self._pip = sample.pip * sample.weight
             self._beta = sample.beta * sample.weight
             self._beta_sq = np.square(sample.beta) * sample.weight
             self._gamma = sample.gamma * sample.weight
@@ -115,7 +115,7 @@ class StreamingSampleContainer(object):
                 self._h = (sample.h_alpha / (sample.h_alpha + sample.h_beta)) * sample.weight
         else:
             factor = 1.0 - 1.0 / self._num_samples
-            self._pip = factor * self._pip + (sample.add_prob * sample.weight) / self._num_samples
+            self._pip = factor * self._pip + (sample.pip * sample.weight) / self._num_samples
             self._beta = factor * self._beta + (sample.beta * sample.weight) / self._num_samples
             self._beta_sq = factor * self._beta_sq + (np.square(sample.beta) * sample.weight) / self._num_samples
             self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples

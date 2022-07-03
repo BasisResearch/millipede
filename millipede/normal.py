@@ -210,8 +210,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.total_weight = 0.0
             self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
 
-        #self.explore = explore / self.P
-        self.explore = explore / self.P if self.subset_size is None else explore / self.subset_size
+        self.explore = explore / self.P
         self.N_nu0 = self.N + nu0
 
         self.compute_betas = compute_betas

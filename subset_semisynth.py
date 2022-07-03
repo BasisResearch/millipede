@@ -89,13 +89,13 @@ def trial(X, Y, prior="isotropic", precompute_XX=False,
 subset_size = int(sys.argv[1])
 if subset_size == 0:
     subset_size = None
-    T = 4000
+    T = 5 * 4000
     T_burnin = 4000
 else:
-    T = 4 * 4000
+    T = 2 * 4 * 4000
     T_burnin = 4 * 4000
 
-num_trials = 10
+num_trials = 3
 X, Y, indices = get_data()
 pips = []
 t0 = time.time()

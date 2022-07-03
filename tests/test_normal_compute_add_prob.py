@@ -12,7 +12,7 @@ from millipede import NormalLikelihoodSampler
 def get_sample(gamma, included_covariates, log_h_ratio):
     P = len(gamma)
     sample = SimpleNamespace(gamma=torch.tensor(gamma).bool(),
-                             add_prob=zeros(P), _i_prob=zeros(P),
+                             pip=zeros(P), _i_prob=zeros(P),
                              _idx=0, weight=0.0)
     sample._active = torch.nonzero(sample.gamma).squeeze(-1)
     if len(included_covariates) > 0:
