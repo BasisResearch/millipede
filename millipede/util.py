@@ -106,3 +106,23 @@ def stack_namespaces(namespaces):
         if val is not None:
             d[attr] = np.stack([ns.__getattribute__(attr) for ns in namespaces])
     return SimpleNamespace(**d)
+
+
+def sample_i(P, S, idx):
+    x = torch.randperm(P - 1, device=idx.device)[:S - 1]
+    x[x>=idx] += 1
+    result = torch.cat([x, idx.unsqueeze(-1)])
+    return result
+
+
+def sample_active_subset(P, subset_size, anchor_subset, anchor_subset_set, anchor_complement, idx):
+    active_subset = anchor_subset
+    if idx.item() not in anchor_subset_set:
+        active_subset = torch.cat([idx.unsqueeze(-1), active_subset])
+        comp = anchor_complement[anchor_complement != idx]
+        remaining = torch.randperm(comp.size(0), device=anchor_subset.device)
+        remaining = comp[remaining[:subset_size - anchor_subset.size(0) - 1]]
+    else:
+        remaining = torch.randperm(anchor_complement.size(0), device=anchor_subset.device)
+        remaining = anchor_complement[remaining[:subset_size - anchor_subset.size(0)]]
+    return torch.cat([active_subset, remaining])

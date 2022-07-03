@@ -18,6 +18,7 @@ from .util import (
     leave_one_out_off_diagonal,
     safe_cholesky,
     set_subtract,
+    sample_active_subset
 )
 
 
@@ -266,8 +267,10 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._activeb = self.assumed_covariates
 
         if self.subset_size is not None:
-            sample._active_subset = torch.randperm(self.P, device=self.device)[:self.subset_size]
-            self._update_anchor(sample._active_subset[:self.anchor_size])
+            self._update_anchor(self.Z.abs().argsort()[-self.anchor_size:])
+            sample._idx = torch.randint(self.P, (), device=self.device)
+            sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
+                                                         self.anchor_subset_set, self.anchor_complement, sample._idx)
 
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
@@ -460,7 +463,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.t += 1
 
         sample._idx = Categorical(probs=sample._i_prob).sample() - 1
-        #assert sample._idx.item() in sample._active_subset.data.numpy().tolist()
 
         if sample._idx.item() >= 0:
             sample.gamma[sample._idx] = ~sample.gamma[sample._idx]
@@ -471,38 +473,19 @@ class NormalLikelihoodSampler(MCMCSampler):
         else:
             sample = self.sample_alpha_beta(sample)
 
-        if self.subset_size is not None and self.t >= self.T_burnin // 10:
-            if sample._idx.item() not in self.anchor_subset_set:
-                active_subset = torch.cat([sample._idx.unsqueeze(-1), self.anchor_subset])
-                comp = self.anchor_complement[self.anchor_complement != sample._idx]
-                remaining = torch.randperm(comp.size(0), device=self.device)
-                remaining = comp[remaining[:self.subset_size - self.anchor_size - 1]]
-            else:
-                active_subset = self.anchor_subset
-                remaining = torch.randperm(self.anchor_complement.size(0), device=self.device)
-                remaining = self.anchor_complement[remaining[:self.subset_size - self.anchor_size]]
-            sample._active_subset = torch.cat([active_subset, remaining])
-        elif self.subset_size is not None:
-            active_subset = sample._idx.unsqueeze(-1)
-            all_P = torch.arange(self.P, device=self.device)
-            comp = all_P[self.anchor_complement != sample._idx]
-            remaining = torch.randperm(comp.size(0), device=self.device)
-            remaining = comp[remaining[:self.subset_size - self.anchor_size - 1]]
-            sample._active_subset = torch.cat([active_subset, remaining])
+        if self.subset_size is not None:
+            sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
+                                                         self.anchor_subset_set, self.anchor_complement, sample._idx)
 
         sample = self._compute_probs(sample)
-
         sample.weight = sample._i_prob.mean().reciprocal()
 
         if self.subset_size is not None and self.t <= self.T_burnin:
             self.pi = sample.weight * sample.pip + self.total_weight * self.pi
             self.total_weight += sample.weight
             self.pi /= self.total_weight
-            if (self.t % 50 == 0 and self.t >= self.T_burnin) or self.t == self.T_burnin:
+            if (self.t > 99 and self.t % 100 == 0) or self.t == self.T_burnin:
                 self._update_anchor(self.pi.argsort()[-self.anchor_size:])
-
-        #if self.t == self.T_burnin and self.subset_size is not None:
-            #print("Final anchor_subset", self.anchor_subset, "\n")
 
         return sample
 
