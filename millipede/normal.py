@@ -182,17 +182,14 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.h = S / self.P
             self.xi = torch.tensor([0.0], device=self.device)
             self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
-            self.h_mean = self.h
         elif isinstance(S, tuple):
             self.h_alpha, self.h_beta = S
             self.h = self.h_alpha / (self.h_alpha + self.h_beta)
-            self.h_mean = self.h
             self.xi = torch.tensor([5.0], device=self.device)
             self.xi_target = xi_target
             self.log_h_ratio = math.log(self.h) - math.log(1.0 - self.h)
         else:
             self.h = S
-            self.h_mean = self.h.mean().item()
             self.xi = torch.tensor([0.0], device=self.device)
             self.log_h_ratio = S.log() - torch.log1p(-S)
 
@@ -203,7 +200,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.subset_size is not None:
             self.anchor_size = subset_size // 2
-            self.pi = X.new_ones(self.P) * self.h_mean
+            self.pi = X.new_ones(self.P) * self.h if isinstance(S, (float, tuple)) else self.h
             self.total_weight = 0.0
             self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
 
