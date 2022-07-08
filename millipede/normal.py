@@ -7,18 +7,14 @@ from torch.distributions import Beta, Categorical
 from torch.linalg import norm
 from torch.linalg import solve_triangular as trisolve
 
-from scipy.special import gammaln as log_gamma
-
-import time
-
 from .sampler import MCMCSampler
 from .util import (
     get_loo_inverses,
     leave_one_out,
     leave_one_out_off_diagonal,
     safe_cholesky,
-    set_subtract,
-    sample_active_subset
+    sample_active_subset,
+    arange_complement,
 )
 
 
@@ -238,22 +234,18 @@ class NormalLikelihoodSampler(MCMCSampler):
         self.epsilon = 1.0e3 * torch.finfo(X.dtype).tiny
 
         if verbose_constructor:
-            s2 = " = ({}, {}, {:.1f}, {:.3f})" if not isinstance(S, tuple) else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f})"
+            s2 = " = ({}, {}, {:.1f}, {:.3f}, {})" if not isinstance(S, tuple) \
+                else " = ({}, {}, ({:.1f}, {:.1f}), {:.3f}, {})"
             if isinstance(S, float):
                 S = (S,)
             elif isinstance(S, torch.Tensor):
                 S = (S.min().item(), S.max().item())
             if self.prior == 'isotropic':
-                s1 = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau)"
-                print((s1 + s2).format(self.N, self.P, *S, self.tau))
+                s1 = "Initialized NormalLikelihoodSampler with isotropic prior and (N, P, S, tau, subset_size)"
+                print((s1 + s2).format(self.N, self.P, *S, self.tau, self.subset_size))
             else:
-                s1 = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c)"
-                print((s1 + s2).format(self.N, self.P, *S, self.c))
-
-            if self.subset_size is not None:
-                print("Subset size: {}".format(self.subset_size))
-            else:
-                print("Not using subset mode.")
+                s1 = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c, subset_size)"
+                print((s1 + s2).format(self.N, self.P, *S, self.c, self.subset_size))
 
     def initialize_sample(self, seed=None):
         if seed is not None:
@@ -282,7 +274,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     def _update_anchor(self, anchor):
         self.anchor_subset = anchor
         self.anchor_subset_set = set(anchor.data.cpu().numpy().tolist())
-        self.anchor_complement = set_subtract(torch.arange(self.P, device=self.device), anchor)
+        self.anchor_complement = arange_complement(self.P, anchor)
 
     def _compute_add_prob(self, sample, return_log_odds=False):
         active = sample._active

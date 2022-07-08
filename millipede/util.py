@@ -4,6 +4,15 @@ import numpy as np
 import torch
 
 
+def arange_complement(P, subset):
+    """
+    Returns the set difference arange(P) - subset; assumes that subset is a subset of arange(P).
+    """
+    mask = torch.ones(P, dtype=bool, device=subset.device)
+    mask[subset] = 0
+    return torch.arange(P, device=subset.device)[mask]
+
+
 def set_subtract(t1, t2):
     """
     Returns the set difference t1 - t2
@@ -110,7 +119,7 @@ def stack_namespaces(namespaces):
 
 def sample_i(P, S, idx):
     x = torch.randperm(P - 1, device=idx.device)[:S - 1]
-    x[x>=idx] += 1
+    x[x >= idx] += 1
     result = torch.cat([x, idx.unsqueeze(-1)])
     return result
 
