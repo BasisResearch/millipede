@@ -1,6 +1,8 @@
+import pytest
+
 import torch
 
-from millipede.util import safe_cholesky, set_subtract, set_intersect
+from millipede.util import safe_cholesky, set_subtract, set_intersect, sample_active_subset, arange_complement
 
 
 def test_safe_cholesky_smoke_test(D=10):
@@ -26,3 +28,17 @@ def test_set_arithmetic():
                 _a = torch.randperm(12)[:a] if a > 0 else torch.tensor([])
                 _b = torch.randperm(12)[:b] if b > 0 else torch.tensor([])
                 _test(_a, _b)
+
+
+@pytest.mark.parametrize("subset_size", [2, 3, 4, 5, 6, 7, 9])
+def test_sample_active_subset(subset_size, P=10):
+    A = subset_size // 2
+    anchor_subset = torch.randperm(P)[:A]
+    anchor_subset_set = set(anchor_subset.data.cpu().numpy().tolist())
+    anchor_complement = arange_complement(P, anchor_subset)
+    idx = torch.randint(P, ())
+    active_subset = sample_active_subset(P, subset_size, anchor_subset, anchor_subset_set, anchor_complement, idx)
+    for i in anchor_subset:
+        assert i in active_subset
+    assert idx.item() in active_subset
+    assert active_subset.size(0) == subset_size
