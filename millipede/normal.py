@@ -256,7 +256,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._activeb = self.assumed_covariates
 
         if self.subset_size is not None:
-            self._update_anchor(self.Z.abs().argsort()[-self.anchor_size:])
+            self._update_anchor(self.Z[:self.P].abs().argsort()[-self.anchor_size:])
             sample._idx = torch.randint(self.P, (), device=self.device)
             sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
                                                          self.anchor_subset_set, self.anchor_complement, sample._idx)
