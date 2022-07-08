@@ -108,13 +108,15 @@ class NormalLikelihoodSampler(MCMCSampler):
                  nu0=0.0, lambda0=0.0,
                  explore=5, precompute_XX=False,
                  compute_betas=False, verbose_constructor=True,
-                 xi_target=0.2, subset_size=None):
+                 xi_target=0.2, subset_size=None,
+                 mixed_precision=False):
         assert prior in ['isotropic', 'gprior']
 
         self.N, self.P = X.shape
         assert (self.N,) == Y.shape
 
-        assert X.dtype == Y.dtype
+        if not mixed_precision:
+            assert X.dtype == Y.dtype
         assert X.device == Y.device
 
         if subset_size is not None and (subset_size <= 1 or subset_size >= self.P):
@@ -127,8 +129,11 @@ class NormalLikelihoodSampler(MCMCSampler):
             if X.size(0) != X_assumed.size(0):
                 raise ValueError("X and X_assumed must have the same number of rows.")
 
-        self.device = X.device
-        self.dtype = X.dtype
+        self.device = Y.device
+        self.dtype = Y.dtype
+        self.mixed_precision = mixed_precision
+        if mixed_precision and precompute_XX:
+            raise ValueError('mixed_precision = True is not compatible with precompute_XX = True.')
 
         self.prior = prior
         self.X = X
@@ -146,7 +151,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.X = torch.cat([self.X, X_assumed], dim=-1)
 
         if include_intercept:
-            self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
+            self.X = torch.cat([self.X, X.new_ones(X.size(0), 1, dtype=X.dtype)], dim=-1)
 
         S = S if not isinstance(S, int) else float(S)
         if isinstance(S, float):
@@ -176,7 +181,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             raise ValueError("xi_target must be in the interval (0, 1).")
 
         self.YY = Y.pow(2.0).sum() + nu0 * lambda0
-        self.Z = einsum("np,n->p", self.X, Y)
+        self.Z = einsum("np,n->p", self.X.type_as(Y), Y)
 
         if isinstance(S, float):
             self.h = S / self.P
@@ -228,7 +233,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.XX = None
 
         self.Pa = 0 if self.assumed_covariates is None else self.assumed_covariates.size(-1)
-        self.epsilon = 1.0e3 * torch.finfo(X.dtype).tiny
+        self.epsilon = 1.0e3 * torch.finfo(Y.dtype).tiny
 
         if verbose_constructor:
             s2 = " = ({}, {}, {:.1f}, {:.3f}, {})" if not isinstance(S, tuple) \
@@ -243,6 +248,12 @@ class NormalLikelihoodSampler(MCMCSampler):
             else:
                 s1 = "Initialized NormalLikelihoodSampler with gprior and (N, P, S, c, subset_size)"
                 print((s1 + s2).format(self.N, self.P, *S, self.c, self.subset_size))
+
+    def getX(self):
+        if self.mixed_precision:
+            return self.X.type_as(self.Y)
+        else:
+            return self.X
 
     def initialize_sample(self, seed=None):
         if seed is not None:
@@ -290,7 +301,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             "all covariates have been selected. Are you sure you have chosen a reasonable prior? " +\
             "Are you sure there is signal in your data?"
 
-        X_k = self.X[:, inactive]
+        X_k = self.getX()[:, inactive]
         Z_k = self.Z[inactive]
         if self.XX is None:
             XX_k = norm(X_k, dim=0).pow(2.0)
@@ -298,7 +309,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             XX_k = self.XX_diag[inactive]
 
         if self.Pa > 0 or num_active > 0:
-            X_activeb = self.X[:, activeb]
+            X_activeb = self.getX()[:, activeb]
             Z_active = self.Z[activeb]
             if self.XX is not None:
                 XX_active = self.XX[activeb][:, activeb]
@@ -334,7 +345,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if self.compute_betas and (num_active > 0 or self.Pa > 0):
             beta_active = trisolve(L_active.t(), Zt_active.unsqueeze(-1), upper=True).squeeze(-1)
-            sample.beta = self.X.new_zeros(self.P + self.Pa)
+            sample.beta = self.Y.new_zeros(self.P + self.Pa)
             epsilon = torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype)
             if self.prior == 'gprior':
                 sample.beta[activeb] = self.c_one_c * beta_active
@@ -343,7 +354,7 @@ class NormalLikelihoodSampler(MCMCSampler):
                 sample.beta[activeb] = beta_active
                 sample.beta[activeb] += trisolve(L_active, epsilon, upper=False).squeeze(-1)
         elif self.compute_betas and num_active == 0:
-            sample.beta = self.X.new_zeros(self.P + self.Pa)
+            sample.beta = self.Y.new_zeros(self.P + self.Pa)
 
         if num_active > 1:
             active_loo = leave_one_out(active)  # I I-1
@@ -378,10 +389,11 @@ class NormalLikelihoodSampler(MCMCSampler):
             if self.Pa == 0:
                 Zt_active_loo_sq = 0.0
                 if self.prior == 'isotropic':
-                    log_det_active = -0.5 * torch.log1p(norm(self.X[:, active], dim=0).pow(2.0) / self.tau)
+                    log_det_active = -0.5 * torch.log1p(norm(self.getX()[:, active], dim=0).pow(2.0) / self.tau)
             else:
                 if self.XX is None:
-                    XX_assumed = self.X[:, self.assumed_covariates].t() @ self.X[:, self.assumed_covariates]
+                    XX_assumed = self.getX()[:, self.assumed_covariates]
+                    XX_assumed = XX_assumed.t() @ XX_assumed
                 else:
                     XX_assumed = self.XX[self.assumed_covariates][:, self.assumed_covariates]
                 if self.prior == "isotropic":
@@ -418,7 +430,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             log_S_ratio = (self.YY - Zt_active_loo_sq).log() - (self.YY - Zt_active_sq).log()
             log_odds_active = log_h_ratio_active + log_det_active + 0.5 * self.N_nu0 * log_S_ratio
 
-        log_odds = self.X.new_full((self.P,), -torch.inf)
+        log_odds = self.Y.new_full((self.P,), -torch.inf)
         log_odds[inactive] = log_odds_inactive
         log_odds[active] = log_odds_active
 
@@ -481,8 +493,8 @@ class NormalLikelihoodSampler(MCMCSampler):
     def sample_alpha_beta(self, sample):
         num_active = sample._active.size(-1)
         num_inactive = self.P - num_active
-        sample.h_alpha = torch.tensor(self.h_alpha + num_active, device=self.X.device)
-        sample.h_beta = torch.tensor(self.h_beta + num_inactive, device=self.X.device)
+        sample.h_alpha = torch.tensor(self.h_alpha + num_active, device=self.device)
+        sample.h_beta = torch.tensor(self.h_beta + num_inactive, device=self.device)
         h = Beta(sample.h_alpha, sample.h_beta).sample().item()
         sample._log_h_ratio = math.log(h) - math.log(1.0 - h)
         return sample
