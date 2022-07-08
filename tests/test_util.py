@@ -1,8 +1,13 @@
 import pytest
-
 import torch
 
-from millipede.util import safe_cholesky, set_subtract, set_intersect, sample_active_subset, arange_complement
+from millipede.util import (
+    arange_complement,
+    safe_cholesky,
+    sample_active_subset,
+    set_intersect,
+    set_subtract,
+)
 
 
 def test_safe_cholesky_smoke_test(D=10):

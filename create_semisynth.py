@@ -1,12 +1,12 @@
+import pickle
+
 import numpy as np
 import pandas as pd
 import pytest
 import torch
-import pickle
 
 from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
-
 
 p = 16
 torch.manual_seed(0)

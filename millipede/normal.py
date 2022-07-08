@@ -9,12 +9,12 @@ from torch.linalg import solve_triangular as trisolve
 
 from .sampler import MCMCSampler
 from .util import (
+    arange_complement,
     get_loo_inverses,
     leave_one_out,
     leave_one_out_off_diagonal,
     safe_cholesky,
     sample_active_subset,
-    arange_complement,
 )
 
 
