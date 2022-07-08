@@ -15,7 +15,7 @@ class ASISampler(NormalLikelihoodSampler):
     def __init__(self, X, Y, S=5.0,
                  prior='isotropic',
                  include_intercept=True,
-                 tau=0.01, tau_intercept=1.0e-4, c=100.0,
+                 tau=0.01, tau_intercept=1.0e-4,
                  nu0=0.0, lambda0=0.0,
                  precompute_XX=False,
                  always_adaptive=True,
@@ -25,7 +25,7 @@ class ASISampler(NormalLikelihoodSampler):
         assert isinstance(S, float)
 
         super().__init__(X=X, Y=Y, S=S, prior=prior, include_intercept=include_intercept,
-                         tau=tau, tau_intercept=tau_intercept, c=c,
+                         tau=tau, tau_intercept=tau_intercept, c=0.0,
                          nu0=nu0, lambda0=lambda0, explore=5.0, precompute_XX=precompute_XX,
                          compute_betas=compute_betas, verbose_constructor=False, subset_size=None)
 

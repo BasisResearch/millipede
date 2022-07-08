@@ -1,12 +1,10 @@
 import numpy as np
+import pandas
 import pytest
 import torch
 from common import assert_close
 
-from millipede import (
-    ASISampler,
-    NormalLikelihoodSampler,
-)
+from millipede import ASISampler, ASIVariableSelector, NormalLikelihoodSampler
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
@@ -57,7 +55,7 @@ def test_linear_correlated(include_intercept, N=128, P=16, intercept=2.34, T=40 
     sampler = ASISampler(X, Y,
                          precompute_XX=False, prior='isotropic',
                          compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
-                         tau=0.01, c=100.0, include_intercept=include_intercept,
+                         tau=0.01, include_intercept=include_intercept,
                          tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
@@ -76,3 +74,19 @@ def test_linear_correlated(include_intercept, N=128, P=16, intercept=2.34, T=40 
 
     if include_intercept:
         assert_close(beta[-1].item(), intercept, atol=0.05)
+
+    columns = ['feat{}'.format(c) for c in range(P)] + ['response']
+    XY = torch.cat([X, Y.unsqueeze(-1)], axis=-1)
+    dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
+
+    selector = ASIVariableSelector(dataframe, 'response',
+                                   tau=0.01,
+                                   precompute_XX=False,
+                                   include_intercept=include_intercept, prior='isotropic',
+                                   S=S, nu0=0.0, lambda0=0.0, precision='double',
+                                   device='cpu')
+
+    selector.run(T=T, T_burnin=T_burnin, report_frequency=0, streaming=True, seed=seed)
+
+    assert_close(selector.pip.values, pip, atol=1.0e-10)
+    assert_close(selector.beta.values, beta, atol=1.0e-10)
