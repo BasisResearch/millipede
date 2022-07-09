@@ -8,7 +8,7 @@ from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-p = 16
+p = 8
 torch.manual_seed(0)
 
 X = torch.from_numpy(pd.read_feather('X.feather').values)
@@ -17,7 +17,7 @@ N, P = X.shape
 print("X.shape: ", X.shape)
 
 idx = torch.randperm(P)
-keep = p * ((P // 2) // p)
+keep = p * ((P // 4) // p)
 block_size = keep // p
 X = X[:, idx[:keep]]
 print("X.shape: ", X.shape, "block_size", block_size)
@@ -55,4 +55,4 @@ Y += sigma * torch.randn(N).type_as(X)
 print("XY", X.shape, Y.shape)
 
 pickle.dump((X.data.cpu().numpy(), Y.data.cpu().numpy(), beta.data.cpu().numpy(), indices),
-            open('X_Y_beta_indices.semisynth.pkl', 'wb'))
+            open('X_Y_beta_indices.semisynth.p8.pkl', 'wb'))

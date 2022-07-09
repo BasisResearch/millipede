@@ -11,10 +11,12 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 
 
 def get_data():
-    X, Y, beta, indices = pickle.load(open('X_Y_beta_indices.semisynth.pkl', 'rb'))
+    X, Y, beta, indices = pickle.load(open('X_Y_beta_indices.semisynth.p8.pkl', 'rb'))
 
     X = torch.from_numpy(X)
     Y = torch.from_numpy(Y)
+    X = X[:512]
+    Y = Y[:512]
     N, P = X.shape
 
     #print("Beta: ", beta)
@@ -34,7 +36,7 @@ def trial(dataframe, prior="isotropic", precompute_XX=False,
 
     selector = NormalLikelihoodVariableSelector(dataframe, 'response', assumed_columns=[],
                                                 tau=1.0e-4, c=0.0,
-                                                precompute_XX=False,
+                                                precompute_XX=True,
                                                 include_intercept=False, prior='isotropic',
                                                 S=10, nu0=0.0, lambda0=0.0, precision='double',
                                                 explore=5.0,
@@ -60,23 +62,23 @@ def trial(dataframe, prior="isotropic", precompute_XX=False,
 subset_size = int(sys.argv[1])
 if subset_size == 0:
     subset_size = None
-    T = 10 * 4000
-    T_burnin = 2000
+    T = 1200 * 4000
+    T_burnin = 5 * 4000
 else:
-    T = 10 * 4 * 4000
-    T_burnin = 4 * 2000
+    T = 1200 * 4000
+    T_burnin = 2 * 5 * 4000
 
-num_trials = 1
+num_trials = 2
 dataframe, indices = get_data()
 #X, Y, indices = get_data()
 pips = []
 t0 = time.time()
 
 for t in range(num_trials):
-    pip = trial(dataframe, subset_size=subset_size, T_burnin=T_burnin, T=T, seed=t, indices=indices)
+    pip = trial(dataframe, subset_size=subset_size, T_burnin=T_burnin, T=T, seed=t + 11, indices=indices)
     pips.append(pip)
 
 t1 = time.time()
 print("total elapsed time: ", t1 - t0, "  subset_size:", subset_size)
 pips = np.stack(pips)
-np.save('pips.semisynth.{}.{}.{}'.format(subset_size, T, T_burnin), pips)
+np.save('pips.semisynth.p8.{}.{}.{}'.format(subset_size, T, T_burnin), pips)
