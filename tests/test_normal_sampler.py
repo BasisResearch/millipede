@@ -34,6 +34,7 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
         Y += 0.5 * X_assumed[:, -1]
 
     S = 1.0 if not variable_S else (0.25, 0.25 * P - 0.25)
+    subset_size = 12 if precompute_XX else None
 
     samples = []
     if device == "cpu":
@@ -41,14 +42,14 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
                                           precompute_XX=precompute_XX, prior=prior,
                                           compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                           tau=0.01, c=100.0, include_intercept=include_intercept,
-                                          tau_intercept=1.0e-4)
+                                          tau_intercept=1.0e-4, subset_size=subset_size)
     elif device == "gpu":
         sampler = NormalLikelihoodSampler(X.cuda(), Y.cuda(),
                                           X_assumed=X_assumed.cuda() if X_assumed is not None else None,
                                           precompute_XX=precompute_XX, prior=prior,
                                           compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                           tau=0.01, c=100.0, include_intercept=include_intercept,
-                                          tau_intercept=1.0e-4)
+                                          tau_intercept=1.0e-4, subset_size=subset_size)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
         if burned:
@@ -88,7 +89,7 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
                                                 precompute_XX=precompute_XX,
                                                 include_intercept=include_intercept, prior=prior,
                                                 S=S, nu0=0.0, lambda0=0.0, precision='double',
-                                                device=device)
+                                                device=device, subset_size=subset_size)
 
     selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency, streaming=precompute_XX, seed=seed)
 

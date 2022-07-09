@@ -6,10 +6,27 @@ import pandas as pd
 import torch
 from tqdm.contrib import tenumerate
 
-from millipede import CountLikelihoodSampler, NormalLikelihoodSampler
+from millipede import ASISampler, CountLikelihoodSampler, NormalLikelihoodSampler
 
 from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
+
+
+def convert_dtype(dtype):
+    if dtype == np.double:
+        return torch.double
+    elif dtype == float:
+        return torch.float
+    elif dtype == np.half:
+        return torch.half
+    elif dtype == np.int32:
+        return torch.int32
+    elif dtype == np.int16:
+        return torch.int16
+    elif dtype == np.int8:
+        return torch.int8
+    elif dtype == bool:
+        return torch.bool
 
 
 def populate_alpha_beta_stats(container, stats):
@@ -225,8 +242,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                  explore=5, precompute_XX=False,
                  xi_target=0.2):
 
-        if precision not in ['single', 'double']:
-            raise ValueError("precision must be one of `single` or `double`")
+        if precision not in ['single', 'double', 'mixeddouble']:
+            raise ValueError("precision must be one of `single` or `double` or `mixeddouble`")
         if device not in ['cpu', 'gpu']:
             raise ValueError("device must be one of `cpu` or `gpu`")
         if response_column not in dataframe.columns:
@@ -249,6 +266,10 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
             X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).double()
+        elif precision == 'mixeddouble':
+            dtype = convert_dtype(X.values.dtype)
+            X, Y = torch.from_numpy(X.values).to(dtype=dtype), torch.from_numpy(Y.values).double()
+            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).to(dtype=dtype)
 
         if device == 'cpu':
             X, Y = X.cpu(), Y.cpu()
@@ -268,7 +289,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
-                                               xi_target=xi_target, subset_size=subset_size)
+                                               xi_target=xi_target, subset_size=subset_size,
+                                               mixed_precision=(precision == "mixeddouble"))
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
@@ -737,6 +759,71 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
         s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
                      self.sampler.attempted_omega_updates)
         self.stats['Polya-Gamma MH stats'] = s
+
+        if verbosity == 'stdout':
+            for k, v in self.stats.items():
+                print('{}: '.format(k), v)
+
+
+class ASIVariableSelector(BayesianVariableSelector):
+    def __init__(self, dataframe, response_column,
+                 S=5, prior="isotropic",
+                 include_intercept=True,
+                 tau=0.01, tau_intercept=1.0e-4,
+                 nu0=0.0, lambda0=0.0,
+                 precision="double", device="cpu",
+                 precompute_XX=False):
+
+        if precision not in ['single', 'double']:
+            raise ValueError("precision must be one of `single` or `double`")
+        if device not in ['cpu', 'gpu']:
+            raise ValueError("device must be one of `cpu` or `gpu`")
+        if response_column not in dataframe.columns:
+            raise ValueError("response_column must be a valid column in the dataframe.")
+
+        X, Y = dataframe.drop([response_column], axis=1), dataframe[response_column]
+
+        self.X_columns = X.columns.tolist()
+        self.include_intercept = include_intercept
+
+        if precision == 'single':
+            X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
+        elif precision == 'double':
+            X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
+
+        if device == 'cpu':
+            X, Y = X.cpu(), Y.cpu()
+        elif device == 'gpu':
+            X, Y = X.cuda(), Y.cuda()
+
+        self.sampler = ASISampler(X, Y, S=S,
+                                  precompute_XX=precompute_XX, prior=prior,
+                                  tau=tau, tau_intercept=tau_intercept,
+                                  compute_betas=True, nu0=nu0, lambda0=lambda0,
+                                  include_intercept=include_intercept,
+                                  verbose_constructor=False)
+
+    def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
+        super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
+                    streaming=streaming, seed=seed)
+
+        self.pip = pd.Series(self.container.pip, index=self.X_columns, name="PIP")
+        column_names = self.X_columns
+        if self.include_intercept:
+            column_names += ['Intercept']
+
+        self.beta = pd.Series(self.container.beta, index=column_names, name="Coefficient")
+        self.beta_std = pd.Series(self.container.beta_std, index=column_names, name="Coefficient StdDev")
+        self.conditional_beta = pd.Series(self.container.conditional_beta, index=column_names,
+                                          name="Conditional Coefficient")
+        self.conditional_beta_std = pd.Series(self.container.conditional_beta_std, index=column_names,
+                                              name="Conditional Coefficient StdDev")
+        self.summary = pd.concat([self.pip, self.beta, self.beta_std,
+                                  self.conditional_beta, self.conditional_beta_std], axis=1)
+
+        self.stats = {}
+        populate_alpha_beta_stats(self.container, self.stats)
+        populate_weight_stats(self, self.stats, self.weights)
 
         if verbosity == 'stdout':
             for k, v in self.stats.items():

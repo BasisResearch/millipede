@@ -1,10 +1,11 @@
+import pickle
+import sys
+import time
+
 import numpy as np
 import pandas as pd
 import pytest
 import torch
-import time
-import sys
-import pickle
 
 from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
