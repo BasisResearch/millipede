@@ -12,11 +12,11 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 
 
 def get_data(mixed=False):
-    X, Y, beta, indices = pickle.load(open('X_Y_beta_indices.semisynth.p20binary.500k.pkl', 'rb'))
+    X, Y, beta, indices = pickle.load(open('X_Y_beta_indices.semisynth.p20binary.750k.pkl', 'rb'))
 
     X = torch.from_numpy(X)
-    print(X[:10, :10])
     Y = torch.from_numpy(Y)
+    X = X[:, :200 * 1000]
     N, P = X.shape
     print("N/P", N, P)
 
@@ -62,6 +62,10 @@ def trial(dataframe, prior="isotropic", precompute_XX=False,
 
     if indices is not None:
         print("Restricted PIP sum: ", pip[indices].sum().item())
+        for threshold in [0.01, 0.1, 0.25, 0.5, 0.9]:
+            print("\n[threshold {:.2f}]".format(threshold))
+            print("Total hits: ", (pip > threshold).sum().item())
+            print("True hits: ", (pip[indices] > threshold).sum().item())
 
     if beta is not None:
         beta_full = np.zeros(dataframe.values.shape[1] - 1)
@@ -78,7 +82,7 @@ if subset_size == 0:
     T = 1000
     T_burnin = 500
 else:
-    T = 5000
+    T = 10 * 1000
     T_burnin = 1000
 
 mixed = 0
