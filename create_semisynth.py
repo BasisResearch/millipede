@@ -8,7 +8,6 @@ import torch
 from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
-
 p = 8
 torch.manual_seed(0)
 

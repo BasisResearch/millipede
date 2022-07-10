@@ -238,7 +238,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                  c=100.0,
                  nu0=0.0, lambda0=0.0,
                  precision="double", device="cpu",
-                 subset_size=None,
+                 subset_size=None, anchor_size=None,
                  explore=5, precompute_XX=False,
                  xi_target=0.2):
 
@@ -289,7 +289,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
-                                               xi_target=xi_target, subset_size=subset_size,
+                                               xi_target=xi_target, subset_size=subset_size, anchor_size=anchor_size,
                                                mixed_precision=(precision == "mixeddouble"))
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
