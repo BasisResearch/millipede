@@ -30,8 +30,8 @@ class ASISampler(NormalLikelihoodSampler):
                          compute_betas=compute_betas, verbose_constructor=False, subset_size=None)
 
         self.epsilon_asi = 0.1 / self.P
-        self.zeta = torch.tensor(0.90)
-        self.pi = self.h * torch.ones(self.P)
+        self.zeta = torch.tensor(0.90, device=self.device, dtype=self.dtype)
+        self.pi = self.h * torch.ones(self.P, device=self.device, dtype=self.dtype)
         self.acc_target = 0.25
         self.lambda_exponent = 0.75
         self.log_h = math.log(self.h)
@@ -109,6 +109,7 @@ class ASISampler(NormalLikelihoodSampler):
         else:
             L, LZ = LLZ_curr
 
+        # BETA STD WRONG BECAUSE NO RANDN
         if self.compute_betas and self.t >= self.T_burnin:
             beta_active = trisolve(L.t(), LZ.unsqueeze(-1), upper=True).squeeze(-1)
             sample.beta = self.X.new_zeros(self.P + self.Pa)
@@ -133,7 +134,7 @@ class ASISampler(NormalLikelihoodSampler):
         active = torch.nonzero(gamma).squeeze(-1)
         activeb = active
         if self.include_intercept:
-            activeb = torch.cat([active, torch.tensor([self.P])])
+            activeb = torch.cat([active, torch.tensor([self.P], device=self.device)])
 
         Xb_active = self.X[:, activeb]
         num_active = activeb.size(-1)
