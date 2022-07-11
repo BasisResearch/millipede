@@ -9,7 +9,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 
 
 @pytest.mark.parametrize("include_intercept", [True, False])
-def test_linear_correlated(include_intercept, N=128, P=16, intercept=2.34, T=40 * 1000, T_burnin=4000, seed=1):
+def test_linear_correlated(include_intercept, N=128, P=16, intercept=2.34, T=70 * 1000, T_burnin=6000, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     Z = torch.randn(N).double()
@@ -25,7 +25,7 @@ def test_linear_correlated(include_intercept, N=128, P=16, intercept=2.34, T=40 
     sampler = NormalLikelihoodSampler(X, Y,
                                       precompute_XX=False, prior='isotropic',
                                       compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
-                                      tau=0.01, c=100.0, include_intercept=include_intercept,
+                                      tau=0.01, c=0.0, include_intercept=include_intercept,
                                       tau_intercept=1.0e-4)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):

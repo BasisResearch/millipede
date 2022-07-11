@@ -109,9 +109,10 @@ class ASISampler(NormalLikelihoodSampler):
         else:
             L, LZ = LLZ_curr
 
-        # BETA STD WRONG BECAUSE NO RANDN
         if self.compute_betas and self.t >= self.T_burnin:
             beta_active = trisolve(L.t(), LZ.unsqueeze(-1), upper=True).squeeze(-1)
+            epsilon = torch.randn(L.size(-1), 1, device=self.device, dtype=self.dtype)
+            beta_active += trisolve(L, epsilon, upper=False).squeeze(-1)
             sample.beta = self.X.new_zeros(self.P + self.Pa)
             if self.include_intercept:
                 sample.beta[sample._activeb] = beta_active
