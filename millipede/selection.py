@@ -36,6 +36,8 @@ def populate_alpha_beta_stats(container, stats):
 
 
 def populate_weight_stats(selector, stats, weights, quantiles=[5.0, 10.0, 20.0, 50.0, 90.0, 95.0]):
+    elapsed_time = time.time() - selector.ts[0]
+
     q5, q10, q20, q50, q90, q95 = np.percentile(weights, quantiles).tolist()
     s = "5/10/20/50/90/95:  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}  {:.2e}"
     stats['Weight quantiles'] = s.format(q5, q10, q20, q50, q90, q95)
@@ -44,7 +46,6 @@ def populate_weight_stats(selector, stats, weights, quantiles=[5.0, 10.0, 20.0, 
                                        weights.min().item(), weights.max().item())
 
     T, T_burnin = selector.T, selector.T_burnin
-    elapsed_time = time.time() - selector.ts[0]
 
     stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
     stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
@@ -91,6 +92,7 @@ class BayesianVariableSelector(object):
 
         self.T = T
         self.T_burnin = T_burnin
+        self.T_burned = None
 
         if streaming:
             self.container = StreamingSampleContainer()
@@ -108,6 +110,8 @@ class BayesianVariableSelector(object):
 
         for t, (burned, sample) in enumerate_samples:
             self.ts.append(time.time())
+            if burned and self.T_burned is None:
+                self.T_burned = self.ts[-1]
             if burned:
                 self.container(namespace_to_numpy(sample))
             if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):
