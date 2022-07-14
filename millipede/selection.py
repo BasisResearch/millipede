@@ -12,6 +12,9 @@ from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
 
 
+COMPUTE_BETAS_DEFAULT = False
+
+
 def convert_dtype(dtype):
     if dtype == np.double:
         return torch.double
@@ -290,7 +293,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior,
                                                tau=tau, tau_intercept=tau_intercept,
-                                               compute_betas=True, nu0=nu0, lambda0=lambda0,
+                                               compute_betas=COMPUTE_BETAS_DEFAULT, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
                                                xi_target=xi_target, subset_size=subset_size, anchor_size=anchor_size,
@@ -803,7 +806,7 @@ class ASIVariableSelector(BayesianVariableSelector):
         self.sampler = ASISampler(X, Y, S=S,
                                   precompute_XX=precompute_XX, prior=prior,
                                   tau=tau, tau_intercept=tau_intercept,
-                                  compute_betas=True, nu0=nu0, lambda0=lambda0,
+                                  compute_betas=COMPUTE_BETAS_DEFAULT, nu0=nu0, lambda0=lambda0,
                                   include_intercept=include_intercept,
                                   verbose_constructor=False)
 
