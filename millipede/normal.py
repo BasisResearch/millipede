@@ -458,6 +458,7 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if hasattr(self, 'h_alpha') and self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
+            self.xi.clamp_(min=0.01)
 
         sample._i_prob = torch.cat([self.xi, i_prob])
 
