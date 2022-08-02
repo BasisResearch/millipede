@@ -12,26 +12,6 @@ from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
 
 
-COMPUTE_BETAS_DEFAULT = False
-
-
-def convert_dtype(dtype):
-    if dtype == np.double:
-        return torch.double
-    elif dtype == float:
-        return torch.float
-    elif dtype == np.half:
-        return torch.half
-    elif dtype == np.int32:
-        return torch.int32
-    elif dtype == np.int16:
-        return torch.int16
-    elif dtype == np.int8:
-        return torch.int8
-    elif dtype == bool:
-        return torch.bool
-
-
 def populate_alpha_beta_stats(container, stats):
     for s in ['h_alpha', 'h_beta', 'h']:
         if hasattr(container, s):
@@ -249,8 +229,8 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                  explore=5, precompute_XX=False,
                  xi_target=0.2):
 
-        if precision not in ['single', 'double', 'mixeddouble']:
-            raise ValueError("precision must be one of `single` or `double` or `mixeddouble`")
+        if precision not in ['single', 'double']:
+            raise ValueError("precision must be one of `single` or `double`")
         if device not in ['cpu', 'gpu']:
             raise ValueError("device must be one of `cpu` or `gpu`")
         if response_column not in dataframe.columns:
@@ -273,10 +253,6 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
             X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).double()
-        elif precision == 'mixeddouble':
-            dtype = convert_dtype(X.values.dtype)
-            X, Y = torch.from_numpy(X.values).to(dtype=dtype), torch.from_numpy(Y.values).double()
-            X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).to(dtype=dtype)
 
         if device == 'cpu':
             X, Y = X.cpu(), Y.cpu()
@@ -293,11 +269,10 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior,
                                                tau=tau, tau_intercept=tau_intercept,
-                                               compute_betas=COMPUTE_BETAS_DEFAULT, nu0=nu0, lambda0=lambda0,
+                                               compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
-                                               xi_target=xi_target, subset_size=subset_size, anchor_size=anchor_size,
-                                               mixed_precision=(precision == "mixeddouble"))
+                                               xi_target=xi_target, subset_size=subset_size, anchor_size=anchor_size)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
