@@ -15,8 +15,7 @@ def arange_complement(P, subset):
 
 def safe_cholesky(A, epsilon=1.0e-8):
     """
-    Equivalent of torch.linalg.cholesky that progressively adds
-    diagonal jitter to avoid cholesky errors.
+    Equivalent of torch.linalg.cholesky that progressively adds diagonal jitter to avoid cholesky errors.
     """
     if A.shape == (1, 1):
         return A.sqrt()
@@ -37,6 +36,9 @@ def safe_cholesky(A, epsilon=1.0e-8):
 
 
 def get_loo_inverses(F):
+    """
+    Computes inverses of all leave-one-out submatrices of inverse(F) in parallel
+    """
     N = F.size(-1)
 
     mask = torch.ones(N, N, N).bool()
@@ -98,6 +100,9 @@ def stack_namespaces(namespaces):
 
 
 def sample_active_subset(P, subset_size, anchor_subset, anchor_subset_set, anchor_complement, idx):
+    """
+    Samples U(-|A,i)
+    """
     active_subset = anchor_subset
     if idx.item() not in anchor_subset_set:
         active_subset = torch.cat([idx.unsqueeze(-1), active_subset])

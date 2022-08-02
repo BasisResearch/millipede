@@ -1,10 +1,12 @@
 import pytest
 import torch
+from common import assert_close
 
 from millipede.util import (
     arange_complement,
     safe_cholesky,
     sample_active_subset,
+    get_loo_inverses
 )
 
 
@@ -33,3 +35,22 @@ def test_sample_active_subset(subset_size, P=10):
         assert i in active_subset
     assert idx.item() in active_subset
     assert active_subset.size(0) == subset_size
+
+
+@pytest.mark.parametrize("N", [2, 3, 4])
+def test_get_loo_inverses(N):
+    F = torch.randn(N, N)
+    F = F @ F + torch.eye(N)
+    F = F.double()
+
+    expected = []
+
+    for n in range(N):
+        mask_n = list(range(N))
+        mask_n.remove(n)
+        mask_n = torch.tensor(mask_n, dtype=torch.int64)
+        expected.append(torch.inverse(F[mask_n][:, mask_n]))
+
+    expected = torch.stack(expected)
+    actual = get_loo_inverses(torch.inverse(F))
+    assert_close(expected, actual)
