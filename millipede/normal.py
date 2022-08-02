@@ -104,8 +104,8 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
         resources to use in Subset wTGS. Otherwise if `subset_size` is None vanilla wTGS is used.
         This argument is intended to be used for datasets with a very large number of covariates (e.g.
-        tens of thousands or more). A typical value might be a few thousand; smaller values result in more
-        MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
+        tens of thousands or more). A typical value might be ~5-10% of the total number of covariates; smaller values
+        result in more MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
     :param int anchor_size: If `subset_size` is not None `anchor_size` controls how greedy Subset wTGS is.
         If `anchor_size` is None it defaults to half of `subsetr_size`. For expert users only. Defaults to None.
     """

@@ -209,9 +209,9 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         For expert users only.
     :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
         resources to use during MCMC inference. Otherwise all available computational resources are used.
-        This argument is intended to be used for datasets with a very large number of covariates (e.g.
-        tens of thousands or more). A typical value might be a few thousand; smaller values result in more
-        MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
+        This argument is intended to be used for datasets with a very large number of covariates (e.g. tens
+        of thousands or more). A typical value might be ~5-10% of the total number of covariates; smaller values
+        result in more MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
     :param bool precompute_XX: Whether the covariance matrix :math:`X^{\rm T} X \in \mathbb{R}^{P \times P}`
         should be pre-computed. Defaults to False. Note that setting this to True may result in out-of-memory errors
         for sufficiently large covariate matrices :math:`X`.
