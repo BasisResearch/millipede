@@ -121,14 +121,16 @@ def test_isotropic_compute_add_log_prob(P, P_assumed, precompute_XX, include_int
 @pytest.mark.parametrize("P_assumed", [0, 1, 2])
 @pytest.mark.parametrize("precompute_XX", [False, True])
 @pytest.mark.parametrize("include_intercept", [True, False])
-def test_gprior_compute_add_log_prob(P, P_assumed, precompute_XX, include_intercept, N=11):
+@pytest.mark.parametrize("subset_size", [None, -1])
+def test_gprior_compute_add_log_prob(P, P_assumed, precompute_XX, include_intercept, subset_size, N=11):
     X = torch.randn(N, P).double()
     X_assumed = torch.randn(N, P_assumed).double() if P_assumed > 0 else None
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
+    subset_size = None if subset_size is None else P // 2
 
     sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=1.0,
                                       tau=0.0, c=0.73, include_intercept=include_intercept,
-                                      precompute_XX=precompute_XX, prior="gprior")
+                                      precompute_XX=precompute_XX, prior="gprior", subset_size=subset_size)
 
     included_covariates = []
     if P_assumed > 0:
@@ -154,4 +156,5 @@ def test_gprior_compute_add_log_prob(P, P_assumed, precompute_XX, include_interc
     def compute_log_factor_ratio(ind1, ind0):
         return compute_log_factor(ind1) - compute_log_factor(ind0) + sampler.log_h_ratio - sampler.log_one_c_sqrt
 
-    check_gammas(sampler, included_covariates, P, compute_log_factor_ratio)
+    active_subset = None if subset_size is None else torch.arange(P)[torch.randperm(P)[:subset_size]]
+    check_gammas(sampler, included_covariates, P, compute_log_factor_ratio, active_subset)
