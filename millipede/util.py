@@ -13,26 +13,6 @@ def arange_complement(P, subset):
     return torch.arange(P, device=subset.device)[mask]
 
 
-def set_subtract(t1, t2):
-    """
-    Returns the set difference t1 - t2
-    """
-    combined = torch.cat((t1, t2))
-    uniques, inverse_indices, counts = combined.unique(return_counts=True, return_inverse=True)
-    inverse_indices = inverse_indices[:t1.size(0)]
-    uniques, counts = uniques[inverse_indices], counts[inverse_indices]
-    return uniques[counts == 1]
-
-
-def set_intersect(t1, t2):
-    """
-    Returns the set intersection t1 ∩ t2
-    """
-    combined = torch.cat((t1, t2))
-    uniques, counts = combined.unique(return_counts=True)
-    return uniques[counts == 2]
-
-
 def safe_cholesky(A, epsilon=1.0e-8):
     """
     Equivalent of torch.linalg.cholesky that progressively adds
@@ -115,13 +95,6 @@ def stack_namespaces(namespaces):
         if val is not None:
             d[attr] = np.stack([ns.__getattribute__(attr) for ns in namespaces])
     return SimpleNamespace(**d)
-
-
-def sample_i(P, S, idx):
-    x = torch.randperm(P - 1, device=idx.device)[:S - 1]
-    x[x >= idx] += 1
-    result = torch.cat([x, idx.unsqueeze(-1)])
-    return result
 
 
 def sample_active_subset(P, subset_size, anchor_subset, anchor_subset_set, anchor_complement, idx):
