@@ -210,6 +210,11 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
+    :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
+        resources to use during MCMC inference. Otherwise all available computational resources are used.
+        This argument is intended to be used for datasets with a very large number of covariates (e.g.
+        tens of thousands or more). A typical value might be a few thousand; smaller values result in more
+        MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
     :param bool precompute_XX: Whether the covariance matrix :math:`X^{\rm T} X \in \mathbb{R}^{P \times P}`
         should be pre-computed. Defaults to False. Note that setting this to True may result in out-of-memory errors
         for sufficiently large covariate matrices :math:`X`.
@@ -225,7 +230,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                  c=100.0,
                  nu0=0.0, lambda0=0.0,
                  precision="double", device="cpu",
-                 subset_size=None, anchor_size=None,
+                 subset_size=None,
                  explore=5, precompute_XX=False,
                  xi_target=0.2):
 
@@ -272,7 +277,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
-                                               xi_target=xi_target, subset_size=subset_size, anchor_size=anchor_size)
+                                               xi_target=xi_target, subset_size=subset_size)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,

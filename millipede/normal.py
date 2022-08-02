@@ -101,6 +101,13 @@ class NormalLikelihoodSampler(MCMCSampler):
         stdout upon initialization.
     :param float xi_target: This hyperparameter controls how often :math:`h` MCMC updates are made if :math:`h`
         is a latent variable. Defaults to 0.2.
+    :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
+        resources to use in Subset wTGS. Otherwise if `subset_size` is None vanilla wTGS is used.
+        This argument is intended to be used for datasets with a very large number of covariates (e.g.
+        tens of thousands or more). A typical value might be a few thousand; smaller values result in more
+        MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
+    :param int anchor_size: If `subset_size` is not None `anchor_size` controls how greedy Subset wTGS is.
+        If `anchor_size` is None it defaults to half of `subsetr_size`. For expert users only. Defaults to None.
     """
     def __init__(self, X, Y, X_assumed=None, S=5.0,
                  prior="isotropic", include_intercept=True,
@@ -121,6 +128,12 @@ class NormalLikelihoodSampler(MCMCSampler):
         if subset_size is not None and (subset_size <= 1 or subset_size >= self.P):
             raise ValueError("If subset_size is not None must be strictly between 1 and P, the number of covariates.")
         self.subset_size = subset_size
+
+        if anchor_size is not None:
+            if subset_size is None:
+                raise ValueError("The anchor_size argument should only be used if subset_size is not None.")
+            if anchor_size < 1 or anchor_size >= subset_size:
+                raise ValueError("anchor_size should be strictly between 0 and subset_size.")
 
         if X_assumed is not None:
             assert X.dtype == X_assumed.dtype

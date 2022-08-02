@@ -37,11 +37,10 @@ def test_sample_active_subset(subset_size, P=10):
     assert active_subset.size(0) == subset_size
 
 
-@pytest.mark.parametrize("N", [2, 3, 4])
+@pytest.mark.parametrize("N", [2, 3, 4, 5, 6, 7])
 def test_get_loo_inverses(N):
-    F = torch.randn(N, N)
-    F = F @ F + torch.eye(N)
-    F = F.double()
+    F = torch.randn(N, 2 * N)
+    F = (F @ F.T).double()
 
     expected = []
 
