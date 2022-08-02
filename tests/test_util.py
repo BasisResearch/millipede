@@ -4,9 +4,9 @@ from common import assert_close
 
 from millipede.util import (
     arange_complement,
+    get_loo_inverses,
     safe_cholesky,
     sample_active_subset,
-    get_loo_inverses
 )
 
 
