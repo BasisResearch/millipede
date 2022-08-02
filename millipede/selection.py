@@ -75,7 +75,6 @@ class BayesianVariableSelector(object):
 
         self.T = T
         self.T_burnin = T_burnin
-        self.T_burned = None
 
         if streaming:
             self.container = StreamingSampleContainer()
@@ -93,8 +92,6 @@ class BayesianVariableSelector(object):
 
         for t, (burned, sample) in enumerate_samples:
             self.ts.append(time.time())
-            if burned and self.T_burned is None:
-                self.T_burned = self.ts[-1]
             if burned:
                 self.container(namespace_to_numpy(sample))
             if verbosity == 'stdout' and (t % report_frequency == 0 or t == T + T_burnin - 1):

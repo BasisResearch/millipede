@@ -160,7 +160,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.X = torch.cat([self.X, X_assumed], dim=-1)
 
         if include_intercept:
-            self.X = torch.cat([self.X, X.new_ones(X.size(0), 1, dtype=X.dtype)], dim=-1)
+            self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
 
         S = S if not isinstance(S, int) else float(S)
         if isinstance(S, float):
@@ -270,10 +270,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._activeb = self.assumed_covariates
 
         if self.subset_size is not None:
-            if self.anchor_size > 0:
-                self._update_anchor(self.Z[:self.P].abs().argsort()[-self.anchor_size:])
-            else:
-                self._update_anchor(torch.tensor([], dtype=torch.long, device=self.device))
+            self._update_anchor(self.Z[:self.P].abs().argsort()[-self.anchor_size:])
             sample._idx = torch.randint(self.P, (), device=self.device)
             sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
                                                          self.anchor_subset_set, self.anchor_complement, sample._idx)
@@ -492,7 +489,7 @@ class NormalLikelihoodSampler(MCMCSampler):
             self.pi = sample.weight * sample.pip + self.total_weight * self.pi
             self.total_weight += sample.weight
             self.pi /= self.total_weight
-            if self.anchor_size > 0 and ((self.t > 99 and self.t % 100 == 0) or self.t == self.T_burnin):
+            if (self.t > 99 and self.t % 100 == 0) or self.t == self.T_burnin:
                 self._update_anchor(self.pi.argsort()[-self.anchor_size:])
 
         return sample
