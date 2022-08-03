@@ -550,6 +550,11 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     :param str precision: Whether computations should be done with 'single' (i.e. 32-bit) or 'double' (i.e. 64-bit)
         floating point precision. Defaults to 'double'. Note that it may be ill-advised to use single precision.
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
+    :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
+        resources to use during MCMC inference. Otherwise all available computational resources are used.
+        This argument is intended to be used for datasets with a very large number of covariates (e.g. tens
+        of thousands or more). A typical value might be ~5-10% of the total number of covariates; smaller values
+        result in more MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
     :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
@@ -558,12 +563,12 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     def __init__(self, dataframe, response_column, assumed_columns=[],
                  S=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu",
-                 explore=5, xi_target=0.25):
+                 explore=5, xi_target=0.25, subset_size=None):
 
         dataframe['DummyTotalCount'] = 1.0
         super().__init__(dataframe, response_column, 'DummyTotalCount', assumed_columns=assumed_columns,
                          S=S, explore=explore, tau=tau, tau_intercept=tau_intercept, precision=precision,
-                         device=device, xi_target=xi_target)
+                         device=device, xi_target=xi_target, subset_size=subset_size)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
@@ -662,6 +667,11 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     :param str device: Whether computations should be done on CPU ('cpu') or GPU ('gpu'). Defaults to 'cpu'.
     :param float log_nu_rw_scale: This hyperparameter controls the proposal distribution for :math:`\log \nu` updates.
         Defaults to 0.05. For expert users only.
+    :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
+        resources to use during MCMC inference. Otherwise all available computational resources are used.
+        This argument is intended to be used for datasets with a very large number of covariates (e.g. tens
+        of thousands or more). A typical value might be ~5-10% of the total number of covariates; smaller values
+        result in more MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
     :param float explore: This hyperparameter controls how greedy the MCMC algorithm is. Defaults to 5.0.
         For expert users only.
     :param float xi_target: This hyperparameter controls how frequently the MCMC algorithm makes Polya-Gamma updates
@@ -673,7 +683,7 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
                  S=5, tau=0.01, tau_intercept=1.0e-4,
                  precision="double", device="cpu",
                  log_nu_rw_scale=0.05, explore=5.0,
-                 xi_target=0.25, init_nu=5.0):
+                 xi_target=0.25, init_nu=5.0, subset_size=None):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -685,6 +695,8 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
             raise ValueError("psi0 must be a valid column in the dataframe.")
         if not isinstance(assumed_columns, list) or any([c not in dataframe.columns for c in assumed_columns]):
             raise ValueError("assumed_columns must be a list of string names of columns in the dataframe.")
+        if subset_size is not None and not isinstance(subset_size, int):
+            raise ValueError("subset_size must be a positive integer or None.")
 
         X = dataframe.drop([response_column, psi0_column] + assumed_columns, axis=1)
         Y = dataframe[response_column]
@@ -719,7 +731,7 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
                                               tau=tau, tau_intercept=tau_intercept,
                                               log_nu_rw_scale=log_nu_rw_scale,
                                               xi_target=xi_target, init_nu=init_nu,
-                                              verbose_constructor=False)
+                                              verbose_constructor=False, subset_size=subset_size)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=100, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
