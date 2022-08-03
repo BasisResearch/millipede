@@ -109,11 +109,12 @@ Roughly speaking, the cost of the MCMC algorithms implemented in millipede is pr
  to `N x P`, where `N` is the total number of data points and `P` is the total number of covariates. 
 For an **approximate** guide to hardware requirements please consult the following table:
 
-| Regime                | Expectations           |
-| ----------------------|------------------------|
-| `N x P < 10^7`        | Use a CPU              |
-| `10^7 < N x P < 10^9` | Use a GPU              |
-| `10^9 < N x P`        | You may be out of luck |
+| Regime                 | Expectations                            |
+| -----------------------|-----------------------------------------|
+| `N x P < 10^7`         | Use a CPU                               |
+| `10^7 < N x P < 10^8`  | Use a GPU                               |
+| `10^8 < N x P < 10^10` | Use a GPU with the subset_size argument |
+| `10^10 < N x P`        | You may be out of luck                  |
 
 
 ## Documentation
@@ -145,7 +146,7 @@ Jankowiak, M., 2022. [Bayesian Variable Selection in a Million Dimensions](https
 
 Zanella, G. and Roberts, G., 2019. [Scalable importance tempering and Bayesian variable selection](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316). Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
 
-## Citating millipede
+## Citing millipede
 
 If you use millipede please consider citing:
 ```

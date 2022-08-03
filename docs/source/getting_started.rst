@@ -114,8 +114,9 @@ to :math:`N \times P`, where :math:`N` is the total number of data points and :m
 For an **approximate** guide to hardware requirements please consult the following guidelines:
 
 * If :math:`N \times P \lesssim 10^7` use a CPU
-* If :math:`10^7 \lesssim N \times P \lesssim 10^9` use a GPU
-* If :math:`10^9 \lesssim N \times P` you may be out of luck
+* If :math:`10^7 \lesssim N \times P \lesssim 10^8` use a GPU
+* If :math:`10^8 \lesssim N \times P \lesssim 10^{10}` use a GPU with the subset_size argument
+* If :math:`10^{10} \lesssim N \times P` you may be out of luck
 
 
 FAQ
