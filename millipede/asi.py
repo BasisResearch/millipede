@@ -1,5 +1,6 @@
 import math
 from types import SimpleNamespace
+import time
 
 import torch
 from torch import sigmoid
@@ -17,6 +18,7 @@ class ASISampler(NormalLikelihoodSampler):
                  include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4,
                  nu0=0.0, lambda0=0.0,
+                 zeta_init=0.9,
                  precompute_XX=False,
                  always_adaptive=True,
                  compute_betas=False, verbose_constructor=True):
@@ -30,7 +32,8 @@ class ASISampler(NormalLikelihoodSampler):
                          compute_betas=compute_betas, verbose_constructor=False, subset_size=None)
 
         self.epsilon_asi = 0.1 / self.P
-        self.zeta = torch.tensor(0.90, device=self.device, dtype=self.dtype)
+        self.kappa_asi = 0.001
+        self.zeta = torch.tensor(zeta_init, device=self.device, dtype=self.dtype)
         self.pi = self.h * torch.ones(self.P, device=self.device, dtype=self.dtype)
         self.acc_target = 0.25
         self.lambda_exponent = 0.75
@@ -54,9 +57,11 @@ class ASISampler(NormalLikelihoodSampler):
 
     def update_zeta_AD(self, delta):
         self.zeta = self.sigmoid_eps(self.logit_eps(self.zeta) + delta)
-        pi = self.epsilon_asi + (1.0 - 2.0 * self.epsilon_asi) * self.pi
+        pi = self.kappa_asi + (1.0 - 2.0 * self.kappa_asi) * self.pi
         self.A = self.zeta * torch.min(torch.ones(1, device=pi.device, dtype=pi.dtype), pi / (1.0 - pi))
         self.D = self.zeta * torch.min(torch.ones(1, device=pi.device, dtype=pi.dtype), (1.0 - pi) / pi)
+        if hasattr(self, 't') and self.t %20 == 0:
+            print("zeta", self.zeta.item(), "pisum", pi.sum().item())
 
     def initialize_sample(self, seed=None):
         if seed is not None:
@@ -68,11 +73,19 @@ class ASISampler(NormalLikelihoodSampler):
                                  _log_h_ratio=self.log_h_ratio,
                                  weight=torch.tensor(1.0, device=self.device, dtype=self.dtype))
 
+        ind = self.Z[:self.P].abs().argsort()[-5:]
+        sample.gamma[ind] = 1
+        print("gammasum", sample.gamma.sum().item())
+        sample._active = torch.nonzero(sample.gamma).squeeze(-1)
+        print("ind", ind)
+
         if self.compute_betas:
             sample.beta = torch.zeros(self.P, device=self.device, dtype=self.dtype)
 
         if self.include_intercept:
-            sample._activeb = torch.tensor([self.P], device=self.device, dtype=torch.int64)
+            sample._activeb = torch.cat([sample._active, torch.tensor([self.P], device=self.device)])
+
+        sample._log_target, _, _, sample._LLZ = self.compute_log_target(sample=sample)
 
         return sample
 
@@ -92,7 +105,7 @@ class ASISampler(NormalLikelihoodSampler):
         logq_prop = q_curr.log_prob(flips).sum().item()
         logq_curr = q_prop.log_prob(flips).sum().item()
 
-        log_target_curr, _, _, LLZ_curr = self.compute_log_target(sample=sample)
+        log_target_curr = sample._log_target
         log_target_prop, active_prop, activeb_prop, LLZ_prop = self.compute_log_target(gamma=gamma_prop)
 
         accept = log_target_prop - log_target_curr + logq_curr - logq_prop
@@ -105,11 +118,11 @@ class ASISampler(NormalLikelihoodSampler):
             sample._active = active_prop
             if self.include_intercept:
                 sample._activeb = activeb_prop
-            L, LZ = LLZ_prop
-        else:
-            L, LZ = LLZ_curr
+            sample._LLZ = LLZ_prop
+            sample._log_target = log_target_prop
 
         if self.compute_betas and self.t >= self.T_burnin:
+            L, LZ = sample._LLZ
             beta_active = trisolve(L.t(), LZ.unsqueeze(-1), upper=True).squeeze(-1)
             epsilon = torch.randn(L.size(-1), 1, device=self.device, dtype=self.dtype)
             beta_active += trisolve(L, epsilon, upper=False).squeeze(-1)

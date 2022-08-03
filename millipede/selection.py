@@ -12,9 +12,6 @@ from .containers import SimpleSampleContainer, StreamingSampleContainer
 from .util import namespace_to_numpy
 
 
-COMPUTE_BETAS_DEFAULT = False
-
-
 def convert_dtype(dtype):
     if dtype == np.double:
         return torch.double
@@ -293,7 +290,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior,
                                                tau=tau, tau_intercept=tau_intercept,
-                                               compute_betas=COMPUTE_BETAS_DEFAULT, nu0=nu0, lambda0=lambda0,
+                                               compute_betas=True, nu0=nu0, lambda0=lambda0,
                                                include_intercept=include_intercept,
                                                verbose_constructor=False,
                                                xi_target=xi_target, subset_size=subset_size, anchor_size=anchor_size,
@@ -779,7 +776,7 @@ class ASIVariableSelector(BayesianVariableSelector):
                  tau=0.01, tau_intercept=1.0e-4,
                  nu0=0.0, lambda0=0.0,
                  precision="double", device="cpu",
-                 precompute_XX=False):
+                 precompute_XX=False, zeta_init=0.90):
 
         if precision not in ['single', 'double']:
             raise ValueError("precision must be one of `single` or `double`")
@@ -806,9 +803,9 @@ class ASIVariableSelector(BayesianVariableSelector):
         self.sampler = ASISampler(X, Y, S=S,
                                   precompute_XX=precompute_XX, prior=prior,
                                   tau=tau, tau_intercept=tau_intercept,
-                                  compute_betas=COMPUTE_BETAS_DEFAULT, nu0=nu0, lambda0=lambda0,
+                                  compute_betas=True, nu0=nu0, lambda0=lambda0,
                                   include_intercept=include_intercept,
-                                  verbose_constructor=False)
+                                  verbose_constructor=False, zeta_init=zeta_init)
 
     def run(self, T=2000, T_burnin=1000, verbosity='bar', report_frequency=200, streaming=True, seed=None):
         super().run(T=T, T_burnin=T_burnin, verbosity=verbosity, report_frequency=report_frequency,
