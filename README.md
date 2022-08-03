@@ -95,10 +95,12 @@ See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/m
 The covariates `X` are essentially arbitrary and can be continuous-valued, binary-valued, a mixture of the two, etc.
 Currently the response `Y` can be any of the following:
 
-- continuous-valued &nbsp;&nbsp; => &nbsp;&nbsp; use [NormalLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#millipede.selection.NormalLikelihoodVariableSelector)
-- binary-valued &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use [BernoulliLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#millipede.selection.BernoulliLikelihoodVariableSelector)
-- bounded counts  &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; => &nbsp;&nbsp; use [BinomialLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#binomiallikelihoodvariableselector)
-- unbounded counts  &nbsp;&nbsp; => &nbsp;&nbsp; use [NegativeBinomialLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#negativebinomiallikelihoodvariableselector)
+| Response type     | Selector class 
+| ------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| continuous-valued | [NormalLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#millipede.selection.NormalLikelihoodVariableSelector)       |
+| binary-valued     | [BernoulliLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#millipede.selection.BernoulliLikelihoodVariableSelector) |
+| bounded counts    | [BinomialLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#binomiallikelihoodvariableselector)                       |
+| unbounded counts  | [NegativeBinomialLikelihoodVariableSelector](https://millipede.readthedocs.io/en/latest/selection.html#negativebinomiallikelihoodvariableselector)       |
 
 
 ## Scalability
@@ -134,7 +136,7 @@ Also, you probably want at least 1000 burn-in iterations.
 
 ## Contact information
 
-Martin Jankowiak: mjankowi@broadinstitute.org
+Martin Jankowiak: martin@basis.ai
 
 
 ## References
@@ -143,7 +145,7 @@ Jankowiak, M., 2022. [Bayesian Variable Selection in a Million Dimensions](https
 
 Zanella, G. and Roberts, G., 2019. [Scalable importance tempering and Bayesian variable selection](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316). Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
 
-## Citations
+## Citating millipede
 
 If you use millipede please consider citing:
 ```
