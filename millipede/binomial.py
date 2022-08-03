@@ -391,7 +391,7 @@ class CountLikelihoodSampler(MCMCSampler):
         log_odds_active = 0.5 * (Zt_active.pow(2.0).sum() - Zt_active_loo_sq) + \
             log_det_ratio_active + log_h_ratio_active
 
-        log_odds = self.Xb.new_zeros(self.P)
+        log_odds = self.Xb.new_full((self.P,), -torch.inf)
         log_odds[inactive] = log_odds_inactive
         log_odds[active] = log_odds_active
 
