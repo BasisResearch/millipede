@@ -14,7 +14,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 @pytest.mark.parametrize("variable_S_X_assumed", [(False, False), (True, True)])
 @pytest.mark.parametrize("device", ["gpu", "cpu"])
 def test_linear_correlated(device, prior, precompute_XX, include_intercept, variable_S_X_assumed,
-                           N=128, P=16, intercept=2.34, T=4000, T_burnin=200, report_frequency=1100, seed=1):
+                           N=128, P=16, intercept=2.34, T=4500, T_burnin=200, report_frequency=1100, seed=1):
     if device == "gpu" and not torch.cuda.is_available():
         return
 

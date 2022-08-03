@@ -69,7 +69,7 @@ def test_binomial(subset_size, variable_S, streaming=False, N=512, P=16, T=2000,
 
 @pytest.mark.parametrize("subset_size", [12, None])
 @pytest.mark.parametrize("device", ["cpu", "gpu"])
-def test_bernoulli(subset_size, device, streaming=True, N=256, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
+def test_bernoulli(subset_size, device, streaming=True, N=256, P=16, T=3000, T_burnin=200, intercept=0.17, seed=1):
     if device == "gpu" and not torch.cuda.is_available():
         return
 
@@ -119,7 +119,7 @@ def test_bernoulli(subset_size, device, streaming=True, N=256, P=16, T=2000, T_b
 
 @pytest.mark.parametrize("subset_size", [12, None])
 @pytest.mark.parametrize("streaming", [False, True])
-def test_negative_binomial(subset_size, streaming, N=256, P=16, T=2000, T_burnin=500, psi0=0.37, seed=0):
+def test_negative_binomial(subset_size, streaming, N=256, P=16, T=3000, T_burnin=500, psi0=0.37, seed=0):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     X_assumed = torch.randn(N, 2).double()
@@ -140,7 +140,7 @@ def test_negative_binomial(subset_size, streaming, N=256, P=16, T=2000, T_burnin
     weights = samples.weight / samples.weight.sum()
 
     nu = np.exp(np.dot(samples.log_nu, weights))
-    assert nu > 2.0 and nu < 20.0
+    assert nu > 2.0 and nu < 40.0
 
     pip = np.dot(samples.pip.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
