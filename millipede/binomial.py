@@ -18,7 +18,7 @@ from .util import (
     leave_one_out,
     leave_one_out_off_diagonal,
     safe_cholesky,
-    sample_active_subset
+    sample_active_subset,
 )
 
 
