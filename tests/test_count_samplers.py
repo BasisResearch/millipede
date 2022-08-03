@@ -13,8 +13,9 @@ from millipede import (
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
+@pytest.mark.parametrize("subset_size", [12, None])
 @pytest.mark.parametrize("variable_S", [False, True])
-def test_binomial(variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
+def test_binomial(subset_size, variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     X_assumed = torch.randn(N, 2).double()
@@ -27,7 +28,8 @@ def test_binomial(variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200
     S = (1.0, P - 1.0) if variable_S else 1.0
 
     samples = []
-    sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, TC=TC, S=S, tau=0.01, tau_intercept=1.0e-4)
+    sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, TC=TC, S=S, tau=0.01,
+                                     tau_intercept=1.0e-4, subset_size=subset_size)
 
     for t, (burned, s) in enumerate(sampler.mcmc_chain(T=T, T_burnin=T_burnin, seed=seed)):
         if burned:
@@ -55,7 +57,8 @@ def test_binomial(variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200
     selector = BinomialLikelihoodVariableSelector(dataframe, 'response', 'total_count',
                                                   assumed_columns=assumed_columns,
                                                   S=S, tau=0.01, tau_intercept=1.0e-4,
-                                                  precision='double', device='cpu')
+                                                  precision='double', device='cpu',
+                                                  subset_size=subset_size)
     selector.run(T=T, T_burnin=T_burnin, report_frequency=1100, streaming=streaming, seed=seed)
 
     assert_close(selector.pip.values, pip, atol=1.0e-10)

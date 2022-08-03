@@ -8,11 +8,11 @@ from millipede import NormalLikelihoodSampler, NormalLikelihoodVariableSelector
 from millipede.util import namespace_to_numpy, stack_namespaces
 
 
-@pytest.mark.parametrize("precompute_XX", [False, True])
-@pytest.mark.parametrize("prior", ["gprior", "isotropic"])
-@pytest.mark.parametrize("include_intercept", [True, False])
-@pytest.mark.parametrize("variable_S_X_assumed", [(False, False), (True, True)])
-@pytest.mark.parametrize("device", ["gpu", "cpu"])
+@pytest.mark.parametrize("precompute_XX", [False, True][:1])
+@pytest.mark.parametrize("prior", ["gprior", "isotropic"][:1])
+@pytest.mark.parametrize("include_intercept", [True, False][:1])
+@pytest.mark.parametrize("variable_S_X_assumed", [(False, False), (True, True)][1:])
+@pytest.mark.parametrize("device", ["gpu", "cpu"][1:])
 def test_linear_correlated(device, prior, precompute_XX, include_intercept, variable_S_X_assumed,
                            N=128, P=16, intercept=2.34, T=4000, T_burnin=200, report_frequency=1100, seed=1):
     if device == "gpu" and not torch.cuda.is_available():

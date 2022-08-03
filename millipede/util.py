@@ -104,7 +104,7 @@ def sample_active_subset(P, subset_size, anchor_subset, anchor_subset_set, ancho
     Samples U(-|A,i)
     """
     active_subset = anchor_subset
-    if idx.item() not in anchor_subset_set:
+    if idx.item() not in anchor_subset_set and idx.item() != -1:
         active_subset = torch.cat([idx.unsqueeze(-1), active_subset])
         comp = anchor_complement[anchor_complement != idx]
         remaining = torch.randperm(comp.size(0), device=anchor_subset.device)

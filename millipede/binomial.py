@@ -13,10 +13,12 @@ from torch.nn.functional import softplus
 
 from .sampler import MCMCSampler
 from .util import (
+    arange_complement,
     get_loo_inverses,
     leave_one_out,
     leave_one_out_off_diagonal,
     safe_cholesky,
+    sample_active_subset
 )
 
 
@@ -123,11 +125,19 @@ class CountLikelihoodSampler(MCMCSampler):
         Defaults to 5.0. Only applicable to the Negative Binomial case.
     :param bool verbose_constructor: Whether the class constructor should print some information to
         stdout upon initialization.
+    :param int subset_size: If `subset_size` is not None `subset_size` controls the amount of computational
+        resources to use in Subset PG-wTGS. Otherwise if `subset_size` is None vanilla PG-wTGS is used.
+        This argument is intended to be used for datasets with a very large number of covariates (e.g.
+        tens of thousands or more). A typical value might be ~5-10% of the total number of covariates; smaller values
+        result in more MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
+    :param int anchor_size: If `subset_size` is not None `anchor_size` controls how greedy Subset PG-wTGS is.
+        If `anchor_size` is None it defaults to half of `subset_size`. For expert users only. Defaults to None.
     """
     def __init__(self, X, Y, X_assumed=None, TC=None, psi0=None,
                  S=5.0, tau=0.01, tau_intercept=1.0e-4,
                  explore=5.0, log_nu_rw_scale=0.05, omega_mh=True,
-                 xi_target=0.25, init_nu=5.0, verbose_constructor=True):
+                 xi_target=0.25, init_nu=5.0, verbose_constructor=True,
+                 subset_size=None, anchor_size=None):
         super().__init__()
         if not ((TC is None and psi0 is not None) or (TC is not None and psi0 is None)):
             raise ValueError('CountLikelihoodSampler supports two modes of operation. ' +
@@ -147,6 +157,16 @@ class CountLikelihoodSampler(MCMCSampler):
                 raise ValueError("X and X_assumed must have the same number of rows.")
             assert X_assumed.size(-1) > 0
             self.Xb = torch.cat([self.Xb, X_assumed], dim=-1)
+
+        if subset_size is not None and (subset_size <= 1 or subset_size >= self.P):
+            raise ValueError("If subset_size is not None must be strictly between 1 and P, the number of covariates.")
+        self.subset_size = subset_size
+
+        if anchor_size is not None:
+            if subset_size is None:
+                raise ValueError("The anchor_size argument should only be used if subset_size is not None.")
+            if anchor_size < 1 or anchor_size >= subset_size:
+                raise ValueError("anchor_size should be strictly between 0 and subset_size.")
 
         self.Xb = torch.cat([self.Xb, X.new_ones(X.size(0), 1)], dim=-1)
         self.Y = Y
@@ -228,14 +248,22 @@ class CountLikelihoodSampler(MCMCSampler):
         self.omega_mh = omega_mh
         self.uniform_dist = Uniform(0.0, X.new_ones(1)[0])
 
+        if self.subset_size is not None:
+            self.anchor_size = subset_size // 2 if anchor_size is None else anchor_size
+            self.pi = X.new_ones(self.P) * self.h if isinstance(S, (float, tuple)) else self.h
+            self.total_weight = 0.0
+            self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
+
         if verbose_constructor:
-            s1 = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon) = "
-            s2 = "({}, {}, {:.1f}, {:.1f})" if not isinstance(S, tuple) else "({}, {}, ({:.1f}, {:.1f}), {:.1f})"
+            s1 = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon, subset_size) = "
+            s2 = "({}, {}, {:.1f}, {:.1f}, {})" if not isinstance(S, tuple) \
+                else "({}, {}, ({:.1f}, {:.1f}), {:.1f}, {})"
             if isinstance(S, float):
                 S = (S,)
             elif isinstance(S, torch.Tensor):
                 S = (S.min().item(), S.max().item())
-            print((s1 + s2).format("Negative Binomial" if self.negbin else "Binomial", self.N, self.P, *S, explore))
+            print((s1 + s2).format("Negative Binomial" if self.negbin
+                  else "Binomial", self.N, self.P, *S, explore, subset_size))
 
     def initialize_sample(self, seed=None):
         self.accepted_omega_updates = 0
@@ -264,7 +292,7 @@ class CountLikelihoodSampler(MCMCSampler):
                                  beta=self.Xb.new_zeros(self.P + self.Pa),
                                  beta_mean=self.Xb.new_zeros(self.P + self.Pa),
                                  _psi0=_psi0,
-                                 _idx=0,
+                                 _idx=torch.randint(self.P, (), device=self.device),
                                  weight=0,
                                  log_nu=log_nu,
                                  _kappa=_kappa,
@@ -274,6 +302,12 @@ class CountLikelihoodSampler(MCMCSampler):
                                  _active=torch.tensor([], dtype=torch.int64),
                                  _activeb=self.assumed_covariates)
 
+        if self.subset_size is not None:
+            Z_cent = einsum("np,n->p", self.Xb[:, :self.P], self.Y - self.Y.mean())
+            self._update_anchor(Z_cent.abs().argsort()[-self.anchor_size:])
+            sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
+                                                         self.anchor_subset_set, self.anchor_complement, sample._idx)
+
         if hasattr(self, "h_alpha"):
             sample.h_alpha = torch.tensor(self.h_alpha, device=self.device)
             sample.h_beta = torch.tensor(self.h_beta, device=self.device)
@@ -282,9 +316,21 @@ class CountLikelihoodSampler(MCMCSampler):
         sample = self._compute_probs(sample)
         return sample
 
+    def _update_anchor(self, anchor):
+        self.anchor_subset = anchor
+        self.anchor_subset_set = set(anchor.data.cpu().numpy().tolist())
+        self.anchor_complement = arange_complement(self.P, anchor)
+
     def _compute_add_prob(self, sample):
         active, activeb = sample._active, sample._activeb
-        inactive = torch.nonzero(~sample.gamma).squeeze(-1)
+
+        if self.subset_size is not None:
+            inactive = torch.zeros(self.P, device=self.device, dtype=torch.bool)
+            inactive[sample._active_subset] = ~(sample.gamma[sample._active_subset])
+            inactive = torch.nonzero(inactive).squeeze(-1)
+        else:
+            inactive = torch.nonzero(~sample.gamma).squeeze(-1)
+
         num_active = active.size(-1)
         assert num_active < self.P, "The MCMC sampler has been driven into a regime where " +\
             "all covariates have been selected. Are you sure you have chosen a reasonable prior? " +\
@@ -352,11 +398,21 @@ class CountLikelihoodSampler(MCMCSampler):
         return log_odds
 
     def _compute_probs(self, sample):
-        sample.pip = sigmoid(self._compute_add_prob(sample))
+        sample._add_prob = sigmoid(self._compute_add_prob(sample))
 
-        gamma = sample.gamma.double()
-        prob_gamma_i = gamma * sample.pip + (1.0 - gamma) * (1.0 - sample.pip)
-        i_prob = 0.5 * (sample.pip + self.explore) / (prob_gamma_i + self.epsilon)
+        gamma = sample.gamma.type_as(sample._add_prob)
+        prob_gamma_i = gamma * sample._add_prob + (1.0 - gamma) * (1.0 - sample._add_prob)
+        _i_prob = 0.5 * (sample._add_prob + self.explore) / (prob_gamma_i + self.epsilon)
+
+        if self.subset_size is not None:
+            _i_prob[self.anchor_subset] *= self.comb_factor
+            i_prob = torch.zeros_like(_i_prob)
+            i_prob[sample._active_subset] = _i_prob[sample._active_subset]
+            sample.pip = sample.gamma.type_as(i_prob)
+            sample.pip[sample._active_subset] = sample._add_prob[sample._active_subset]
+        else:
+            i_prob = _i_prob
+            sample.pip = sample._add_prob
 
         if self.t <= self.T_burnin:  # adapt xi
             self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
@@ -381,8 +437,19 @@ class CountLikelihoodSampler(MCMCSampler):
                 sample = self.sample_alpha_beta(sample)
             sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
 
+        if self.subset_size is not None:
+            sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
+                                                         self.anchor_subset_set, self.anchor_complement, sample._idx)
+
         sample = self._compute_probs(sample)
         sample.weight = sample._i_prob.mean().reciprocal()
+
+        if self.subset_size is not None and self.t <= self.T_burnin:
+            self.pi = sample.weight * sample.pip + self.total_weight * self.pi
+            self.total_weight += sample.weight
+            self.pi /= self.total_weight
+            if (self.t > 99 and self.t % 100 == 0) or self.t == self.T_burnin:
+                self._update_anchor(self.pi.argsort()[-self.anchor_size:])
 
         return sample
 

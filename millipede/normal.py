@@ -107,7 +107,7 @@ class NormalLikelihoodSampler(MCMCSampler):
         tens of thousands or more). A typical value might be ~5-10% of the total number of covariates; smaller values
         result in more MCMC iterations per second but may lead to high variance PIP estimates. Defaults to None.
     :param int anchor_size: If `subset_size` is not None `anchor_size` controls how greedy Subset wTGS is.
-        If `anchor_size` is None it defaults to half of `subsetr_size`. For expert users only. Defaults to None.
+        If `anchor_size` is None it defaults to half of `subset_size`. For expert users only. Defaults to None.
     """
     def __init__(self, X, Y, X_assumed=None, S=5.0,
                  prior="isotropic", include_intercept=True,
@@ -270,7 +270,8 @@ class NormalLikelihoodSampler(MCMCSampler):
             sample._activeb = self.assumed_covariates
 
         if self.subset_size is not None:
-            self._update_anchor(self.Z[:self.P].abs().argsort()[-self.anchor_size:])
+            Z_cent = einsum("np,n->p", self.X[:, :self.P], self.Y - self.Y.mean())
+            self._update_anchor(Z_cent.abs().argsort()[-self.anchor_size:])
             sample._idx = torch.randint(self.P, (), device=self.device)
             sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
                                                          self.anchor_subset_set, self.anchor_complement, sample._idx)
