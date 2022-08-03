@@ -101,7 +101,7 @@ def stack_namespaces(namespaces):
 
 def sample_active_subset(P, subset_size, anchor_subset, anchor_subset_set, anchor_complement, idx):
     """
-    Samples U(-|A,i)
+    Samples from U(-|A,i). See Section 3 in arXiv:2208.01180 for details.
     """
     active_subset = anchor_subset
     if idx.item() not in anchor_subset_set and idx.item() != -1:

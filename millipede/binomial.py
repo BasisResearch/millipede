@@ -253,6 +253,8 @@ class CountLikelihoodSampler(MCMCSampler):
             self.pi = X.new_ones(self.P) * self.h if isinstance(S, (float, tuple)) else self.h
             self.total_weight = 0.0
             self.comb_factor = (self.subset_size - self.anchor_size) / (self.P - self.anchor_size)
+        else:
+            self.comb_factor = 1.0
 
         if verbose_constructor:
             s1 = "Initialized CountLikelihoodSampler with {} likelihood and (N, P, S, epsilon, subset_size) = "
@@ -336,6 +338,7 @@ class CountLikelihoodSampler(MCMCSampler):
             "all covariates have been selected. Are you sure you have chosen a reasonable prior? " +\
             "Are you sure there is signal in your data?"
 
+        # TODO: do we need to compute all of this if subset_size is not None?
         X_omega = self.Xb * sample._omega.sqrt().unsqueeze(-1)
         X_omega_k = X_omega[:, inactive]
 
@@ -415,10 +418,11 @@ class CountLikelihoodSampler(MCMCSampler):
             sample.pip = sample._add_prob
 
         if self.t <= self.T_burnin:  # adapt xi
-            self.xi += (self.xi_target - self.xi / (self.xi + i_prob.sum())) / math.sqrt(self.t + 1)
+            xi_comb = self.xi * self.comb_factor
+            self.xi += (self.xi_target - xi_comb / (xi_comb + i_prob.sum())) / math.sqrt(self.t + 1)
             self.xi.clamp_(min=0.01)
 
-        sample._i_prob = torch.cat([self.xi, i_prob])
+        sample._i_prob = torch.cat([self.xi * self.comb_factor, i_prob])
 
         return sample
 

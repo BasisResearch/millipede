@@ -118,15 +118,22 @@ def test_bernoulli(subset_size, device, streaming=True, N=256, P=16, T=3000, T_b
 
 
 @pytest.mark.parametrize("subset_size", [12, None])
-@pytest.mark.parametrize("streaming", [False, True])
-def test_negative_binomial(subset_size, streaming, N=256, P=16, T=3000, T_burnin=500, psi0=0.37, seed=0):
+@pytest.mark.parametrize("noisy", [False, True])
+def test_negative_binomial(subset_size, noisy, N=256, P=16, T=4000, T_burnin=500, psi0=0.37, seed=0):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     X_assumed = torch.randn(N, 2).double()
     Z = torch.randn(N).double()
     X[:, 0:2] = Z.unsqueeze(-1) + 0.001 * torch.randn(N, 2).double()
-    log_rate = Z + 0.33 * X_assumed[:, -1] + 0.05 * torch.randn(N)
+
+    if noisy:
+        log_rate = Z + 0.33 * X_assumed[:, -1] + 0.50 * torch.randn(N)
+    else:
+        log_rate = Z + 0.33 * X_assumed[:, -1] + 0.05 * torch.randn(N)
+
     Y = torch.distributions.Poisson(log_rate.exp()).sample()
+
+    streaming = noisy
 
     samples = []
     sampler = CountLikelihoodSampler(X, Y, X_assumed=X_assumed, psi0=psi0, subset_size=subset_size,
@@ -139,8 +146,9 @@ def test_negative_binomial(subset_size, streaming, N=256, P=16, T=3000, T_burnin
     samples = stack_namespaces(samples)
     weights = samples.weight / samples.weight.sum()
 
-    nu = np.exp(np.dot(samples.log_nu, weights))
-    assert nu > 2.0 and nu < 40.0
+    if noisy:
+        nu = np.exp(np.dot(samples.log_nu, weights))
+        assert nu > 1.0 and nu < 6.0
 
     pip = np.dot(samples.pip.T, weights)
     assert_close(pip[:2], np.array([0.5, 0.5]), atol=0.2)
@@ -149,8 +157,8 @@ def test_negative_binomial(subset_size, streaming, N=256, P=16, T=3000, T_burnin
     beta = np.dot(np.transpose(samples.beta), weights)
     assert_close(beta[:2], np.array([0.5, 0.5]), atol=0.15)
     assert_close(beta[2:P + 1], np.zeros(P - 1), atol=0.1)
-    assert_close(beta[P + 1].item(), 0.33, atol=0.1)
-    assert_close(beta[-1].item(), -psi0, atol=0.1)
+    assert_close(beta[P + 1].item(), 0.33, atol=0.1 if not noisy else 0.2)
+    assert_close(beta[-1].item(), -psi0, atol=0.1 if not noisy else 0.2)
 
     # test selector
     XYpsi0 = torch.cat([X, Y.unsqueeze(-1), X.new_ones(N, 1) * psi0, X_assumed], axis=-1)
