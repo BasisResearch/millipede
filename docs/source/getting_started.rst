@@ -141,9 +141,9 @@ Martin Jankowiak: mjankowi@broadinstitute.org
 References
 ----------
 
-* Zanella, G. and Roberts, G., 2019. `Scalable importance tempering and Bayesian variable selection <https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316>`__. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
+* Jankowiak, M., 2022. `Bayesian Variable Selection in a Million Dimensions <https://arxiv.org/abs/2208.01180>`__ arXiv preprint arXiv:2208.01180.
 
-* Jankowiak, M., 2021. `Fast Bayesian Variable Selection in Binomial and Negative Binomial Regression <https://arxiv.org/abs/2106.14981>`__ arXiv preprint arXiv:2106.14981.
+* Zanella, G. and Roberts, G., 2019. `Scalable importance tempering and Bayesian variable selection <https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316>`__. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
 
 Citations
 ---------
@@ -152,20 +152,12 @@ If you use millipede please consider citing:
 
 ::
 
-    @article{zanella2019scalable,
-      title={Scalable importance tempering and Bayesian variable selection},
-      author={Zanella, Giacomo and Roberts, Gareth},
-      journal={Journal of the Royal Statistical Society: Series B (Statistical Methodology)},
-      volume={81},
-      number={3},
-      pages={489--517},
-      year={2019},
-      publisher={Wiley Online Library}
-    }
-
-    @article{jankowiak2021fast,
-      title={Fast Bayesian Variable Selection in Binomial and Negative Binomial Regression},
-      author={Jankowiak, Martin},
-      journal={arXiv preprint arXiv:2106.14981},
-      year={2021}
-    }
+@article{jankowiak2022bayesian,
+      title={Bayesian Variable Selection in a Million Dimensions},
+      author={Martin Jankowiak},
+      journal={arXiv preprint arXiv:{2208.01180},
+      year={2022},
+      eprint={2208.01180},
+      archivePrefix={arXiv},
+      primaryClass={stat.ME}
+}
