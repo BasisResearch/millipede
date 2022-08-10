@@ -438,8 +438,14 @@ class CountLikelihoodSampler(MCMCSampler):
             sample = self.sample_beta(sample)
         else:
             if hasattr(self, 'h_alpha'):
-                sample = self.sample_alpha_beta(sample)
-            sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
+                if torch.rand(1).item() < 0.50:
+                    sample = self.sample_alpha_beta(sample)
+                    sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
+                else:
+                    sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
+                    sample = self.sample_alpha_beta(sample)
+            else:
+                sample = self.sample_omega_nb(sample) if self.negbin else self.sample_omega_binomial(sample)
 
         if self.subset_size is not None:
             sample._active_subset = sample_active_subset(self.P, self.subset_size, self.anchor_subset,
