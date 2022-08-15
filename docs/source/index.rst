@@ -1,4 +1,4 @@
-:github_url: https://github.com/broadinstitute/millipede
+:github_url: https://github.com/BasisResearch/millipede
 
 
 millipede documentation

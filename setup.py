@@ -24,7 +24,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(include=["millipede"]),
-    url="https://github.com/broadinstitute/millipede",
+    url="https://github.com/BasisResearch/millipede",
     author="Martin Jankowiak",
     author_email="mjankowi@broadinstitute.org",
     install_requires=[

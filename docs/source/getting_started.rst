@@ -58,13 +58,13 @@ Install directly from GitHub:
 
 ::
 
-    pip install git+https://github.com/broadinstitute/millipede.git
+    pip install git+https://github.com/BasisResearch/millipede.git
 
 Install from source:
 
 ::
 
-    git clone git@github.com:broadinstitute/millipede.git
+    git clone git@github.com:BasisResearch/millipede.git
     cd millipede
     pip install .
 
@@ -92,7 +92,7 @@ Using millipede is easy:
     # inspect the results
     print(selector.summary)
 
-See the Jupyter notebooks in the `notebooks <https://github.com/broadinstitute/millipede/tree/master/notebooks>`__ directory for detailed example usage.
+See the Jupyter notebooks in the `notebooks <https://github.com/BasisResearch/millipede/tree/master/notebooks>`__ directory for detailed example usage.
 
 
 Supported data types

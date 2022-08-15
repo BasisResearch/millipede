@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/broadinstitute/millipede/workflows/CI/badge.svg)](https://github.com/broadinstitute/millipede/actions)
+[![Build Status](https://github.com/BasisResearch/millipede/workflows/CI/badge.svg)](https://github.com/BasisResearch/millipede/actions)
 [![Documentation Status](https://readthedocs.org/projects/millipede/badge/?version=latest)](https://millipede.readthedocs.io/en/latest/?badge=latest)
       
 
@@ -57,11 +57,11 @@ python -c 'import torch; print(torch.cuda.is_available())'
 
 Install directly from GitHub:
 
-```pip install git+https://github.com/broadinstitute/millipede.git```
+```pip install git+https://github.com/BasisResearch/millipede.git```
 
 Install from source:
 ```
-git clone git@github.com:broadinstitute/millipede.git
+git clone git@github.com:BasisResearch/millipede.git
 cd millipede
 pip install .
 ```
@@ -87,7 +87,7 @@ selector.run(T=1000, T_burnin=500)
 print(selector.summary)
 ```
 
-See the Jupyter notebooks in the [notebooks](https://github.com/broadinstitute/millipede/tree/master/notebooks) directory for detailed example usage.
+See the Jupyter notebooks in the [notebooks](https://github.com/BasisResearch/millipede/tree/master/notebooks) directory for detailed example usage.
 
 
 ## Supported data types 
