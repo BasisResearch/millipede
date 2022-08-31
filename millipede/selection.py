@@ -31,7 +31,7 @@ def populate_weight_stats(selector, stats, weights, quantiles=[5.0, 10.0, 20.0, 
     T, T_burnin = selector.T, selector.T_burnin
 
     stats['Elapsed MCMC time'] = "{:.1f} seconds".format(elapsed_time)
-    stats['Mean iteration time'] = "{:.3f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
+    stats['Mean iteration time'] = "{:.4f} ms".format(1000.0 * elapsed_time / (T + T_burnin))
     stats['Number of retained samples'] = T
     stats['Number of burn-in samples'] = T_burnin
 
@@ -295,6 +295,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
                                   self.conditional_beta, self.conditional_beta_std], axis=1)
 
         self.stats = {}
+        self.stats['sigma posterior'] = '{:.4f} +- {:.4f}'.format(self.container.sigma, self.container.sigma_std)
         populate_alpha_beta_stats(self.container, self.stats)
         populate_weight_stats(self, self.stats, self.weights)
 
@@ -465,8 +466,8 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
         populate_alpha_beta_stats(self.container, self.stats)
         populate_weight_stats(self, self.stats, self.weights)
 
-        self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
-        s = "Mean acc. prob.: {:.3f}  Accepted/Attempted: {}/{}"
+        self.stats['Adapted xi value'] = "{:.4f}".format(self.sampler.xi.item())
+        s = "Mean acc. prob.: {:.4f}  Accepted/Attempted: {}/{}"
         s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
                      self.sampler.attempted_omega_updates)
         self.stats['Polya-Gamma MH stats'] = s
@@ -754,11 +755,11 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
         populate_alpha_beta_stats(self.container, self.stats)
         populate_weight_stats(self, self.stats, self.weights)
 
-        self.stats['nu posterior'] = '{:.3f} +- {:.3f}'.format(self.container.nu, self.container.nu_std)
-        self.stats['log(nu) posterior'] = '{:.3f} +- {:.3f}'.format(self.container.log_nu, self.container.log_nu_std)
+        self.stats['nu posterior'] = '{:.4f} +- {:.4f}'.format(self.container.nu, self.container.nu_std)
+        self.stats['log(nu) posterior'] = '{:.4f} +- {:.4f}'.format(self.container.log_nu, self.container.log_nu_std)
 
-        self.stats['Adapted xi value'] = "{:.3f}".format(self.sampler.xi.item())
-        s = "Mean acc. prob.: {:.3f}  Accepted/Attempted: {}/{}"
+        self.stats['Adapted xi value'] = "{:.4f}".format(self.sampler.xi.item())
+        s = "Mean acc. prob.: {:.4f}  Accepted/Attempted: {}/{}"
         s = s.format(np.mean(self.sampler.acceptance_probs), self.sampler.accepted_omega_updates,
                      self.sampler.attempted_omega_updates)
         self.stats['Polya-Gamma MH stats'] = s

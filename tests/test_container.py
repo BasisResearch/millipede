@@ -24,6 +24,7 @@ def test_containers(P_assumed, P=101, atol=1.0e-7):
                                  beta=beta,
                                  pip=np.random.rand(P),
                                  log_nu=np.random.randn(),
+                                 sigma=np.random.rand(),
                                  h_alpha=np.random.rand(),
                                  h_beta=np.random.rand(),
                                  weight=np.random.rand())
@@ -54,6 +55,8 @@ def test_containers(P_assumed, P=101, atol=1.0e-7):
 
     assert_close(c1.log_nu, c2.log_nu, atol=atol)
     assert_close(c1.log_nu_std, c2.log_nu_std, atol=atol)
+    assert_close(c1.sigma, c2.sigma, atol=atol)
+    assert_close(c1.sigma_std, c2.sigma_std, atol=atol)
     assert_close(c1.nu, c2.nu, atol=atol)
     assert_close(c1.nu_std, c2.nu_std, atol=atol)
     assert_close(c1.beta_std, c2.beta_std, atol=atol)

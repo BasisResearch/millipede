@@ -355,15 +355,15 @@ class NormalLikelihoodSampler(MCMCSampler):
             epsilon = torch.randn(activeb.size(-1), 1, device=self.device, dtype=self.dtype)
             if self.prior == 'gprior':
                 sigma_beta = 0.5 * (self.YY - self.c_one_c * Zt_active_sq)
-                sample._sigma = Gamma(0.5 * self.N_nu0, sigma_beta).sample().sqrt().reciprocal()
+                sample.sigma = Gamma(0.5 * self.N_nu0, sigma_beta).sample().sqrt().reciprocal()
                 sample.beta[activeb] = self.c_one_c * beta_active
-                sample.beta[activeb] += self.c_one_c_sqrt * sample._sigma * \
+                sample.beta[activeb] += self.c_one_c_sqrt * sample.sigma * \
                     trisolve(L_active, epsilon, upper=False).squeeze(-1)
             else:
                 sigma_beta = 0.5 * (self.YY - Zt_active_sq)
-                sample._sigma = Gamma(0.5 * self.N_nu0, sigma_beta).sample().sqrt().reciprocal()
+                sample.sigma = Gamma(0.5 * self.N_nu0, sigma_beta).sample().sqrt().reciprocal()
                 sample.beta[activeb] = beta_active
-                sample.beta[activeb] += sample._sigma * trisolve(L_active, epsilon, upper=False).squeeze(-1)
+                sample.beta[activeb] += sample.sigma * trisolve(L_active, epsilon, upper=False).squeeze(-1)
         elif self.compute_betas and num_active == 0:
             sample.beta = self.Y.new_zeros(self.P + self.Pa)
 

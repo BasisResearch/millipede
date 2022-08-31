@@ -48,6 +48,14 @@ class SimpleSampleContainer(object):
         return np.sqrt(np.dot(np.square(self.samples.log_nu), self.weights) - self.log_nu ** 2).item()
 
     @cached_property
+    def sigma(self):
+        return np.dot(self.samples.sigma, self.weights).item()
+
+    @cached_property
+    def sigma_std(self):
+        return np.sqrt(np.dot(np.square(self.samples.sigma), self.weights) - self.sigma ** 2).item()
+
+    @cached_property
     def nu(self):
         return np.dot(np.exp(self.samples.log_nu), self.weights).item()
 
@@ -104,6 +112,9 @@ class StreamingSampleContainer(object):
             self._beta = sample.beta * sample.weight
             self._beta_sq = np.square(sample.beta) * sample.weight
             self._gamma = sample.gamma * sample.weight
+            if hasattr(sample, 'sigma'):
+                self._sigma = sample.sigma * sample.weight
+                self._sigma_sq = np.square(sample.sigma) * sample.weight
             if hasattr(sample, 'log_nu'):
                 self._log_nu = sample.log_nu * sample.weight
                 self._log_nu_sq = np.square(sample.log_nu) * sample.weight
@@ -119,6 +130,9 @@ class StreamingSampleContainer(object):
             self._beta = factor * self._beta + (sample.beta * sample.weight) / self._num_samples
             self._beta_sq = factor * self._beta_sq + (np.square(sample.beta) * sample.weight) / self._num_samples
             self._gamma = factor * self._gamma + (sample.gamma * sample.weight) / self._num_samples
+            if hasattr(sample, 'sigma'):
+                self._sigma = factor * self._sigma + (sample.sigma * sample.weight) / self._num_samples
+                self._sigma_sq = factor * self._sigma_sq + (np.square(sample.sigma) * sample.weight) / self._num_samples
             if hasattr(sample, 'log_nu'):
                 self._log_nu = factor * self._log_nu + (sample.log_nu * sample.weight) / self._num_samples
                 self._log_nu_sq = factor * self._log_nu_sq +\
@@ -154,6 +168,14 @@ class StreamingSampleContainer(object):
     @cached_property
     def log_nu_std(self):
         return np.sqrt(self._normalizer * self._log_nu_sq - self.log_nu ** 2).item()
+
+    @cached_property
+    def sigma(self):
+        return self._normalizer * self._sigma
+
+    @cached_property
+    def sigma_std(self):
+        return np.sqrt(self._normalizer * self._sigma_sq - self.sigma ** 2).item()
 
     @cached_property
     def nu(self):
