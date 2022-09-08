@@ -76,6 +76,9 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param tensor Y: A N-dimensional `torch.Tensor` of continuous responses.
     :param tensor X_assumed: A N x P' `torch.Tensor` of covariates that are always assumed to be part of the model.
         Defaults to `None`.
+    :param tensor sigma_scale_factor: A N-dimensional `torch.Tensor` of positive scale factors that are used
+        to scale the standard deviation of the Normal likelihood for each data point. For example, specifying
+        2.0 for a particular datapoint results in :math:`\sigma \rightarrow 2 \sigma`. Defaults to `None`.
     :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
         To specify covariate-level prior inclusion probabilities provide a P-dimensional `torch.Tensor` of
         the form `(h_1, ..., h_P)`.
@@ -109,7 +112,7 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param int anchor_size: If `subset_size` is not None `anchor_size` controls how greedy Subset wTGS is.
         If `anchor_size` is None it defaults to half of `subset_size`. For expert users only. Defaults to None.
     """
-    def __init__(self, X, Y, X_assumed=None, S=5.0,
+    def __init__(self, X, Y, X_assumed=None, sigma_scale_factor=None, S=5.0,
                  prior="isotropic", include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4, c=100.0,
                  nu0=0.0, lambda0=0.0,
@@ -141,6 +144,16 @@ class NormalLikelihoodSampler(MCMCSampler):
             if X.size(0) != X_assumed.size(0):
                 raise ValueError("X and X_assumed must have the same number of rows.")
 
+        if sigma_scale_factor is not None:
+            assert sigma_scale_factor.dtype == X.dtype
+            assert sigma_scale_factor.device == X.device
+            if sigma_scale_factor.shape != (self.N,):
+                raise ValueError("sigma_scale_factor must be a N-dimensional tensor.")
+            if sigma_scale_factor.min().item() <= 0.0:
+                raise ValueError("All entries in sigma_scale_factor must be positive.")
+            if prior != "isotropic":
+                raise ValueError("sigma_scale_factor can only be used in conjuction with an isotropic prior.")
+
         self.device = Y.device
         self.dtype = Y.dtype
 
@@ -161,6 +174,10 @@ class NormalLikelihoodSampler(MCMCSampler):
 
         if include_intercept:
             self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
+
+        if sigma_scale_factor is not None:
+            self.X /= sigma_scale_factor.unsqueeze(-1)
+            Y /= sigma_scale_factor.unsqueeze
 
         S = S if not isinstance(S, int) else float(S)
         if isinstance(S, float):
