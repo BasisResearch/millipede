@@ -178,15 +178,15 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     where :math:`c > 0` is a user-specified hyperparameter.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response column (and the columns in `assumed_columns`
+        encodes a single datapoint. All columns apart from the response column (and the columns in `assumed_columns`
         if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the continuous-valued responses.
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
     :param str sigma_scale_factor_column: The name of the (optional) column in `dataframe` that contains positive
-        scale factors that are used to scale the standard deviation of the Normal likelihood for each data point.
-        For example, specifying 2.0 for a particular datapoint results in :math:`\sigma \rightarrow 2 \sigma`
+        scale factors that are used to scale the standard deviation of the Normal likelihood for each datapoint.
+        For example, specifying 2.0 for a particular datapoint results in :math:`\sigma \rightarrow 2 \times \sigma`
         for that datapoint. Defaults to `None`.
     :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
         To specify covariate-level prior inclusion probabilities provide a `pandas.Series` with index that corresponds
@@ -381,11 +381,11 @@ class BinomialLikelihoodVariableSelector(BayesianVariableSelector):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response and total count column (and the columns
+        encodes a single datapoint. All columns apart from the response and total count column (and the columns
         in `assumed_columns` if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str total_count_column: The name of the column in `dataframe` that contains the total count
-        for each data point.
+        for each datapoint.
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
@@ -551,7 +551,7 @@ class BernoulliLikelihoodVariableSelector(BinomialLikelihoodVariableSelector):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response column (and the columns in `assumed_columns`
+        encodes a single datapoint. All columns apart from the response column (and the columns in `assumed_columns`
         if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the binary-valued responses.
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
@@ -664,11 +664,11 @@ class NegativeBinomialLikelihoodVariableSelector(BayesianVariableSelector):
     The intercept :math:`\beta_0` is always included in the model.
 
     :param DataFrame dataframe: A `pandas.DataFrame` that contains covariates and responses. Each row
-        encodes a single data point. All columns apart from the response and psi0 column (and the columns in
+        encodes a single datapoint. All columns apart from the response and psi0 column (and the columns in
         `assumed_columns` if there are any) are assumed to be covariates.
     :param str response_column: The name of the column in `dataframe` that contains the count-valued responses.
     :param str psi0_column: The name of the column in `dataframe` that contains the offset
-        :math:`\psi_{0, n}` for each data point.
+        :math:`\psi_{0, n}` for each datapoint.
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.

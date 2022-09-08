@@ -77,8 +77,8 @@ class NormalLikelihoodSampler(MCMCSampler):
     :param tensor X_assumed: A N x P' `torch.Tensor` of covariates that are always assumed to be part of the model.
         Defaults to `None`.
     :param tensor sigma_scale_factor: A N-dimensional `torch.Tensor` of positive scale factors that are used
-        to scale the standard deviation of the Normal likelihood for each data point. For example, specifying
-        2.0 for a particular datapoint results in :math:`\sigma \rightarrow 2 \sigma`. Defaults to `None`.
+        to scale the standard deviation of the Normal likelihood for each datapoint. For example, specifying
+        2.0 for a particular datapoint results in :math:`\sigma \rightarrow 2 \times \sigma`. Defaults to `None`.
     :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
         To specify covariate-level prior inclusion probabilities provide a P-dimensional `torch.Tensor` of
         the form `(h_1, ..., h_P)`.

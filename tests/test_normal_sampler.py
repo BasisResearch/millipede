@@ -106,8 +106,8 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
 
     selector.run(T=T, T_burnin=T_burnin, report_frequency=report_frequency, streaming=precompute_XX, seed=seed)
 
-    assert_close(selector.pip.values, pip, atol=1.0e-10)
-    assert_close(selector.beta.values, beta, atol=1.0e-10)
+    assert_close(selector.pip.values, pip, atol=1.0e-9)
+    assert_close(selector.beta.values, beta, atol=1.0e-9)
 
     assert_close(selector.pip.values[:2], np.array([0.5, 0.5]), atol=0.2)
     assert_close(selector.pip.values[2:], np.zeros(P - 2), atol=0.1)
