@@ -184,6 +184,10 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     :param list assumed_columns: A list of the names of the columns in `dataframe` that correspond to covariates that
         are always assumed to be part of the model. Defaults to []. Note that these columns do not have PIPs,
         as they are always included in the model.
+    :param str sigma_scale_factor_column: The name of the (optional) column in `dataframe` that contains positive
+        scale factors that are used to scale the standard deviation of the Normal likelihood for each data point.
+        For example, specifying 2.0 for a particular datapoint results in :math:`\sigma \rightarrow 2 \sigma`
+        for that datapoint. Defaults to `None`.
     :param S: Controls the expected number of covariates to include in the model a priori. Defaults to 5.0.
         To specify covariate-level prior inclusion probabilities provide a `pandas.Series` with index that corresponds
         to covariate columns in `dataframe` and that specifies covariate-level prior inclusion probabilities.
@@ -221,6 +225,7 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
     """
     def __init__(self, dataframe, response_column,
                  assumed_columns=[],
+                 sigma_scale_factor_column=None,
                  S=5, prior="isotropic",
                  include_intercept=True,
                  tau=0.01, tau_intercept=1.0e-4,
@@ -237,13 +242,21 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
             raise ValueError("device must be one of `cpu` or `gpu`")
         if response_column not in dataframe.columns:
             raise ValueError("response_column must be a valid column in the dataframe.")
+        if sigma_scale_factor_column is not None and sigma_scale_factor_column not in dataframe.columns:
+            raise ValueError("sigma_scale_factor_column must be a valid column in the dataframe.")
         if not isinstance(assumed_columns, list) or any([c not in dataframe.columns for c in assumed_columns]):
             raise ValueError("assumed_columns must be a list of string names of columns in the dataframe.")
         if subset_size is not None and not isinstance(subset_size, int):
             raise ValueError("subset_size must be a positive integer or None.")
 
-        X, Y = dataframe.drop([response_column] + assumed_columns, axis=1), dataframe[response_column]
+        if sigma_scale_factor_column is not None:
+            dropped_columns = [response_column, sigma_scale_factor_column] + assumed_columns
+        else:
+            dropped_columns = [response_column] + assumed_columns
+
+        X, Y = dataframe.drop(dropped_columns, axis=1), dataframe[response_column]
         X_assumed = None if len(assumed_columns) == 0 else dataframe[assumed_columns]
+        sigma_scale_factor = None if sigma_scale_factor_column is None else dataframe[sigma_scale_factor_column]
 
         self.X_columns = X.columns.tolist()
         self.assumed_columns = assumed_columns
@@ -252,23 +265,30 @@ class NormalLikelihoodVariableSelector(BayesianVariableSelector):
         if precision == 'single':
             X, Y = torch.from_numpy(X.values).float(), torch.from_numpy(Y.values).float()
             X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).float()
+            sigma_scale_factor = None if sigma_scale_factor is None \
+                else torch.from_numpy(sigma_scale_factor.values).float()
         elif precision == 'double':
             X, Y = torch.from_numpy(X.values).double(), torch.from_numpy(Y.values).double()
             X_assumed = None if X_assumed is None else torch.from_numpy(X_assumed.values).double()
+            sigma_scale_factor = None if sigma_scale_factor is None \
+                else torch.from_numpy(sigma_scale_factor.values).double()
 
         if device == 'cpu':
             X, Y = X.cpu(), Y.cpu()
             X_assumed = None if X_assumed is None else X_assumed.cpu()
+            sigma_scale_factor = None if sigma_scale_factor is None else sigma_scale_factor.cpu()
         elif device == 'gpu':
             X, Y = X.cuda(), Y.cuda()
             X_assumed = None if X_assumed is None else X_assumed.cuda()
+            sigma_scale_factor = None if sigma_scale_factor is None else sigma_scale_factor.cuda()
 
         if isinstance(S, pd.Series):
             if set(self.X_columns) != set(S.index):
                 raise ValueError("The index of S must match the named columns of dataframe.")
             S = torch.from_numpy(S.loc[self.X_columns].values).type_as(X)
 
-        self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=c, explore=explore,
+        self.sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, sigma_scale_factor=sigma_scale_factor,
+                                               S=S, c=c, explore=explore,
                                                precompute_XX=precompute_XX, prior=prior,
                                                tau=tau, tau_intercept=tau_intercept,
                                                compute_betas=True, nu0=nu0, lambda0=lambda0,

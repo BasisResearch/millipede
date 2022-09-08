@@ -175,10 +175,6 @@ class NormalLikelihoodSampler(MCMCSampler):
         if include_intercept:
             self.X = torch.cat([self.X, X.new_ones(X.size(0), 1)], dim=-1)
 
-        if sigma_scale_factor is not None:
-            self.X /= sigma_scale_factor.unsqueeze(-1)
-            Y /= sigma_scale_factor.unsqueeze
-
         S = S if not isinstance(S, int) else float(S)
         if isinstance(S, float):
             if S >= self.P or S <= 0:
@@ -206,8 +202,14 @@ class NormalLikelihoodSampler(MCMCSampler):
         if xi_target <= 0.0 or xi_target >= 1.0:
             raise ValueError("xi_target must be in the interval (0, 1).")
 
-        self.YY = Y.pow(2.0).sum() + nu0 * lambda0
-        self.Z = einsum("np,n->p", self.X, Y)
+        if sigma_scale_factor is not None:
+            self.X = self.X.clone() / sigma_scale_factor.unsqueeze(-1)
+            Y_scaled = Y / sigma_scale_factor
+            self.YY = Y_scaled.pow(2.0).sum() + nu0 * lambda0
+            self.Z = einsum("np,n->p", self.X, Y_scaled)
+        else:
+            self.YY = Y.pow(2.0).sum() + nu0 * lambda0
+            self.Z = einsum("np,n->p", self.X, Y)
 
         if isinstance(S, float):
             self.h = S / self.P

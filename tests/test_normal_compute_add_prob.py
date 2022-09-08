@@ -79,9 +79,12 @@ def test_isotropic_compute_add_log_prob(P, P_assumed, precompute_XX, include_int
     Y = X[:, 0] + 0.2 * torch.randn(N).double()
 
     S = 1.0 if include_intercept else (torch.randn(P) / 100).exp().double() / P
-    sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, S=S, c=0.0,
+    sigma_scale_factor = None if subset_size is None else (torch.ones(N) + 0.1 * torch.rand(N)).double()
+    sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed,
+                                      sigma_scale_factor=sigma_scale_factor, S=S, c=0.0,
                                       tau=tau, tau_intercept=tau_intercept, include_intercept=include_intercept,
                                       precompute_XX=precompute_XX, prior="isotropic", subset_size=subset_size)
+    sigma_scale_factor = torch.ones(N).double() if sigma_scale_factor is None else sigma_scale_factor
 
     included_covariates = []
     if P_assumed > 0:
@@ -103,7 +106,8 @@ def test_isotropic_compute_add_log_prob(P, P_assumed, precompute_XX, include_int
         precision = tau * torch.eye(len(ind))
         if include_intercept:
             precision[-1, -1] = tau_intercept
-        F = torch.inverse(X[:, ind].t() @ X[:, ind] + precision)
+        X_ind = X[:, ind] / sigma_scale_factor.unsqueeze(-1)
+        F = torch.inverse(X_ind.t() @ X_ind + precision)
         ZFZ = (torch.mv(F, Z[ind]) * Z[ind]).sum(0)
         return -0.5 * N * (YY - ZFZ).log() + 0.5 * F.logdet()
 

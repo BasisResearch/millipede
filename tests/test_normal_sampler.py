@@ -36,9 +36,14 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
     S = 1.0 if not variable_S else (0.25, 0.25 * P - 0.25)
     subset_size = 12 if precompute_XX else None
 
+    if prior == 'isotropic':
+        sigma_scale_factor = (torch.ones(N) + 0.1 * torch.rand(N)).double()
+    else:
+        sigma_scale_factor = None
+
     samples = []
     if device == "cpu":
-        sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed,
+        sampler = NormalLikelihoodSampler(X, Y, X_assumed=X_assumed, sigma_scale_factor=sigma_scale_factor,
                                           precompute_XX=precompute_XX, prior=prior,
                                           compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                           tau=0.01, c=100.0, include_intercept=include_intercept,
@@ -46,6 +51,8 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
     elif device == "gpu":
         sampler = NormalLikelihoodSampler(X.cuda(), Y.cuda(),
                                           X_assumed=X_assumed.cuda() if X_assumed is not None else None,
+                                          sigma_scale_factor=sigma_scale_factor.cuda() if
+                                              sigma_scale_factor is not None else None,
                                           precompute_XX=precompute_XX, prior=prior,
                                           compute_betas=True, S=S, nu0=0.0, lambda0=0.0,
                                           tau=0.01, c=100.0, include_intercept=include_intercept,
@@ -83,8 +90,14 @@ def test_linear_correlated(device, prior, precompute_XX, include_intercept, vari
         columns += assumed_columns
 
     dataframe = pandas.DataFrame(XY.data.numpy(), columns=columns)
+    if sigma_scale_factor is not None:
+        sigma_scale_factor_column = 'sigma_scale_factor'
+        dataframe[sigma_scale_factor_column] = sigma_scale_factor
+    else:
+        sigma_scale_factor_column = None
 
     selector = NormalLikelihoodVariableSelector(dataframe, 'response', assumed_columns=assumed_columns,
+                                                sigma_scale_factor_column=sigma_scale_factor_column,
                                                 tau=0.01, c=100.0,
                                                 precompute_XX=precompute_XX,
                                                 include_intercept=include_intercept, prior=prior,
