@@ -17,22 +17,25 @@ def safe_cholesky(A, epsilon=1.0e-8):
     """
     Equivalent of torch.linalg.cholesky that progressively adds diagonal jitter to avoid cholesky errors.
     """
+
     if A.shape == (1, 1):
         return A.sqrt()
-    try:
-        return torch.linalg.cholesky(A)
-    except RuntimeError as e:
-        Aprime = A.clone()
-        jitter_prev = 0.0
-        for i in range(5):
-            jitter_new = epsilon * (10 ** i)
-            Aprime.diagonal(dim1=-2, dim2=-1).add_(jitter_new - jitter_prev)
-            jitter_prev = jitter_new
-            try:
-                return torch.linalg.cholesky(Aprime)
-            except RuntimeError:
-                continue
-        raise e
+
+    L, info = torch.linalg.cholesky_ex(A)
+    if not torch.any(info):
+        return L
+
+    Aprime = A.clone()
+    jitter_prev = 0.0
+    for i in range(5):
+        jitter_new = epsilon * (10 ** i)
+        Aprime.diagonal(dim1=-2, dim2=-1).add_(jitter_new - jitter_prev)
+        jitter_prev = jitter_new
+        L, info = torch.linalg.cholesky_ex(Aprime)
+        if not torch.any(info):
+            return L
+
+    raise RuntimeError("Encountered cholesky errors despite repeatedly adding diagonal jitter.")
 
 
 def get_loo_inverses(F):
