@@ -1,5 +1,4 @@
 import math
-from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -11,7 +10,7 @@ from torch.linalg import norm
 from torch.linalg import solve_triangular as trisolve
 from torch.nn.functional import softplus
 
-from .sampler import MCMCSampler
+from .sampler import MCMCSampler, Sample
 from .util import (
     arange_complement,
     get_loo_inverses,
@@ -289,20 +288,20 @@ class CountLikelihoodSampler(MCMCSampler):
         _kappa_omega = _kappa - _omega * _psi0
         _Z = einsum("np,n->p", self.Xb, _kappa_omega)
 
-        sample = SimpleNamespace(gamma=self.Xb.new_zeros(self.P).bool(),
-                                 _omega=_omega,
-                                 beta=self.Xb.new_zeros(self.P + self.Pa),
-                                 beta_mean=self.Xb.new_zeros(self.P + self.Pa),
-                                 _psi0=_psi0,
-                                 _idx=torch.randint(self.P, (), device=self.device),
-                                 weight=0,
-                                 log_nu=log_nu,
-                                 _kappa=_kappa,
-                                 _kappa_omega=_kappa_omega,
-                                 _Z=_Z,
-                                 _log_h_ratio=self.log_h_ratio,
-                                 _active=torch.tensor([], dtype=torch.int64),
-                                 _activeb=self.assumed_covariates)
+        sample = Sample(gamma=self.Xb.new_zeros(self.P).bool(),
+                        _omega=_omega,
+                        beta=self.Xb.new_zeros(self.P + self.Pa),
+                        beta_mean=self.Xb.new_zeros(self.P + self.Pa),
+                        _psi0=_psi0,
+                        _idx=torch.randint(self.P, (), device=self.device),
+                        weight=0,
+                        log_nu=log_nu,
+                        _kappa=_kappa,
+                        _kappa_omega=_kappa_omega,
+                        _Z=_Z,
+                        _log_h_ratio=self.log_h_ratio,
+                        _active=torch.tensor([], dtype=torch.int64),
+                        _activeb=self.assumed_covariates)
 
         if self.subset_size is not None:
             Z_cent = einsum("np,n->p", self.Xb[:, :self.P], self.Y - self.Y.mean())

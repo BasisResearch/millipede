@@ -1,5 +1,4 @@
 import math
-from types import SimpleNamespace
 
 import torch
 from torch import einsum, matmul, sigmoid
@@ -7,7 +6,7 @@ from torch.distributions import Beta, Categorical, Gamma
 from torch.linalg import norm
 from torch.linalg import solve_triangular as trisolve
 
-from .sampler import MCMCSampler
+from .sampler import MCMCSampler, Sample
 from .util import (
     arange_complement,
     get_loo_inverses,
@@ -283,9 +282,9 @@ class NormalLikelihoodSampler(MCMCSampler):
         if seed is not None:
             torch.manual_seed(seed)
 
-        sample = SimpleNamespace(gamma=torch.zeros(self.P, device=self.device).bool(),
-                                 _active=torch.tensor([], device=self.device, dtype=torch.int64),
-                                 _log_h_ratio=self.log_h_ratio)
+        sample = Sample(gamma=torch.zeros(self.P, device=self.device).bool(),
+                        _active=torch.tensor([], device=self.device, dtype=torch.int64),
+                        _log_h_ratio=self.log_h_ratio)
 
         if self.Pa > 0:
             sample._activeb = self.assumed_covariates
