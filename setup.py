@@ -30,7 +30,7 @@ setup(
     install_requires=[
         "torch>=1.11",
         "pandas",
-        "polyagamma==1.3.2",
+        "polyagamma",
         "tqdm",
     ],
     extras_require={
