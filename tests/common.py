@@ -7,7 +7,7 @@ def assert_close(actual, expected, atol=1e-7, rtol=0, msg="", equal_nan=False):
         assert actual.shape == expected.shape
     if not msg:
         msg = "{} vs {}".format(actual, expected)
-    if type(actual) != type(expected):
+    if type(actual) is not type(expected):
         raise AssertionError(
             "cannot compare {} and {}".format(type(actual), type(expected))
         )
