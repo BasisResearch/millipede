@@ -15,7 +15,7 @@ from millipede.util import namespace_to_numpy, stack_namespaces
 
 @pytest.mark.parametrize("subset_size", [12, None])
 @pytest.mark.parametrize("variable_S", [False, True])
-def test_binomial(subset_size, variable_S, streaming=False, N=512, P=16, T=2000, T_burnin=200, intercept=0.17, seed=1):
+def test_binomial(subset_size, variable_S, streaming=False, N=512, P=16, T=3000, T_burnin=500, intercept=0.17, seed=1):
     torch.manual_seed(seed)
     X = torch.randn(N, P).double()
     X_assumed = torch.randn(N, 2).double()
