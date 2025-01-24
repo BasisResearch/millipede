@@ -154,16 +154,16 @@ If you use millipede please consider citing:
 ::
 
 @InProceedings{pmlr-v206-jankowiak23a,
-  title = 	  {Bayesian Variable Selection in a Million Dimensions},
-  author =    {Jankowiak, Martin},
-  booktitle = {Proceedings of The 26th International Conference on Artificial Intelligence and Statistics},
-  pages = 	  {253--282},
-  year = 	  {2023},
-  volume = 	  {206},
-  series = 	  {Proceedings of Machine Learning Research},
-  month = 	  {25--27 Apr},
-  publisher = {PMLR},
-  pdf = 	  {https://proceedings.mlr.press/v206/jankowiak23a/jankowiak23a.pdf},
-  url = 	  {https://proceedings.mlr.press/v206/jankowiak23a.html},
+title = 	  {Bayesian Variable Selection in a Million Dimensions},
+author =    {Jankowiak, Martin},
+booktitle = {Proceedings of The 26th International Conference on Artificial Intelligence and Statistics},
+pages = 	  {253--282},
+year = 	  {2023},
+volume = 	  {206},
+series = 	  {Proceedings of Machine Learning Research},
+month = 	  {25--27 Apr},
+publisher = {PMLR},
+pdf = 	  {https://proceedings.mlr.press/v206/jankowiak23a/jankowiak23a.pdf},
+url = 	  {https://proceedings.mlr.press/v206/jankowiak23a.html},
 }
 
