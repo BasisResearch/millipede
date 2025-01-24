@@ -142,7 +142,7 @@ Martin Jankowiak: martin@basis.ai
 References
 ----------
 
-* Jankowiak, M., 2022. `Bayesian Variable Selection in a Million Dimensions <https://arxiv.org/abs/2208.01180>`__ arXiv preprint arXiv:2208.01180.
+* Jankowiak, M., 2023. `Bayesian Variable Selection in a Million Dimensions <https://proceedings.mlr.press/v206/jankowiak23a.html>`__ AISTATS 2023.
 
 * Zanella, G. and Roberts, G., 2019. `Scalable importance tempering and Bayesian variable selection <https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12316>`__. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 81(3), pp.489-517.
 
@@ -153,12 +153,17 @@ If you use millipede please consider citing:
 
 ::
 
-@article{jankowiak2022bayesian,
-      title={Bayesian Variable Selection in a Million Dimensions},
-      author={Martin Jankowiak},
-      journal={arXiv preprint arXiv:{2208.01180},
-      year={2022},
-      eprint={2208.01180},
-      archivePrefix={arXiv},
-      primaryClass={stat.ME}
+@InProceedings{pmlr-v206-jankowiak23a,
+  title = 	  {Bayesian Variable Selection in a Million Dimensions},
+  author =    {Jankowiak, Martin},
+  booktitle = {Proceedings of The 26th International Conference on Artificial Intelligence and Statistics},
+  pages = 	  {253--282},
+  year = 	  {2023},
+  volume = 	  {206},
+  series = 	  {Proceedings of Machine Learning Research},
+  month = 	  {25--27 Apr},
+  publisher = {PMLR},
+  pdf = 	  {https://proceedings.mlr.press/v206/jankowiak23a/jankowiak23a.pdf},
+  url = 	  {https://proceedings.mlr.press/v206/jankowiak23a.html},
 }
+
