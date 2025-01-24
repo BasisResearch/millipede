@@ -149,11 +149,9 @@ References
 Citing millipede
 ----------------
 
-If you use millipede please consider citing:
+If you use millipede please consider citing the relevant reference below::
 
-::
-
-@InProceedings{pmlr-v206-jankowiak23a,
+      @InProceedings{pmlr-v206-jankowiak23a,
       title = 	  {Bayesian Variable Selection in a Million Dimensions},
       author =    {Jankowiak, Martin},
       booktitle = {Proceedings of The 26th International Conference on Artificial Intelligence and Statistics},
@@ -165,4 +163,4 @@ If you use millipede please consider citing:
       publisher = {PMLR},
       pdf = 	  {https://proceedings.mlr.press/v206/jankowiak23a/jankowiak23a.pdf},
       url = 	  {https://proceedings.mlr.press/v206/jankowiak23a.html},
-}
+      }
