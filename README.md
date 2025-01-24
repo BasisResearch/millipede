@@ -137,7 +137,7 @@ Also, you probably want at least 1000 burn-in iterations.
 
 ## Contact information
 
-Martin Jankowiak: martin@basis.ai
+Martin Jankowiak: jankowiak@gmail.com 
 
 
 ## References
